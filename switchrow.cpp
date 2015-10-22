@@ -9,7 +9,9 @@ SwitchRow::SwitchRow(QWidget *parent) : QWidget(parent)
     layout->setSpacing(0);
     lineEdit = new QLineEdit;
     lineEdit->setValidator(new OctalValidator);
-    connect(lineEdit,QLineEdit::editingFinished, this,[this]{
+    connect(lineEdit,&QLineEdit::editingFinished,
+            this,[this]()
+    {
         bool ok;
         setSr(lineEdit->text().toInt(&ok,8));
     });

@@ -59,7 +59,7 @@ typedef int ByteDelegate(int i);
         std::string msg;
     public:
         PDP8_Exception(const std::string& msg) : msg(msg) {}
-        const char* what() const noexcept { return msg.c_str(); }
+        const char* what() const _NOEXCEPT { return msg.c_str(); }
 
     };
 
@@ -180,6 +180,17 @@ typedef int ByteDelegate(int i);
 
                m_index += sizeof(T);
            }
+           void readPDP8(unsigned short* p, size_t size) {
+               if(eof())
+                   throw std::runtime_error("Premature end of array!");
+
+               if((m_index + size) > m_vec.size())
+                   throw std::runtime_error("Premature end of array!");
+
+               for(size_t i=0;i<size;i++)
+                   p[i] = m_vec[m_index++];
+
+           }
 
            void read(char* p, size_t size)
            {
@@ -193,34 +204,6 @@ typedef int ByteDelegate(int i);
 
                m_index += size;
            }
-    };
-    class mem_ostream
-    {
-    public:
-        mem_ostream() {}
-        void close()
-        {
-            m_vec.clear();
-        }
-        const std::vector<char>& get_internal_vec()
-        {
-            return m_vec;
-        }
-        template<typename T>
-        void write(const T& t)
-        {
-            std::vector<char> vec(sizeof(T));
-            std::memcpy(reinterpret_cast<void*>(&vec[0]), reinterpret_cast<const void*>(&t), sizeof(T));
-            write(vec);
-        }
-        void write(const char* p, size_t size)
-        {
-            for(size_t i=0; i<size; ++i)
-                m_vec.push_back(p[i]);
-        }
-
-    private:
-        std::vector<char> m_vec;
     };
 
 // This class contains all the regesters of the PDP8 CPU as well as a helper disassembler
@@ -485,6 +468,92 @@ typedef int ByteDelegate(int i);
                  std::thread th(&Emx8::threadRun,this,&state);
                  th.detach();
              }
+             // crude simple method so I can verfiy agenst
+             // No expanded memory support
+            int Prun1(PDP8_State& state, int &vrix, int &vriy, std::chrono::nanoseconds& total_time){
+                static const std::chrono::nanoseconds memory_cycle_time(1500);
+                 static const std::chrono::nanoseconds iot_cycle_time(4250);
+                 total_time += memory_cycle_time + memory_cycle_time;
+                 if ( ++ilag==100 ) {
+                     if(!terminal_in.empty()){
+                         int nch = terminal_in.front();
+                         terminal_in.pop();
+                         cinf = toupper(nch) | 0200;
+                         if (cinf == 0200 + 5) { // ^E .. Halt
+                             for (int i = 0; i<15; i++) {
+                                 printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
+                                 pbp = (pbp + 1) & 15;
+                             }
+                           //  xpc = pc; xac = ac; xmq = mq;
+                             return (1);
+                         }
+                         if (cinf == 0200 + 8) cinf = 0377;
+                         if (cinf == 0200 + 24) cinf = 131; // Remap ^X->^C
+                     }
+
+                  ilag=0;
+                 }
+                 if ( intf&&ibus ) {
+                  state.mem[0]=state.pc&07777;
+                  state.pc=1;
+                  intf=0;//inth=0;
+                  }
+
+              /*   printf( "%04o %05o\n", pc, mem[pc]  ); */
+                 pbf[pbp]=state.pc;
+                ibf[pbp]=state.mem[state.pc];
+                pbp=( pbp+1 )&7;
+                 state.mb=state.mem[state.pc];
+                 state.ma=( ( state.mb&0177 )+( state.mb&0200?( state.pc&07600 ):0 ) );
+                 state.pc=( ( state.pc+1 )&07777 );
+                 state.ac&=017777;
+                 ibus=( cinf||coutf||dskfl );
+
+                    int flg = 0;
+                 // check defer
+                // state.ma=SetMa(state.mb,state.ma);
+                 if ((state.mb&07000)<06000)	{		// DEFER
+                      total_time += memory_cycle_time;
+                     if ( state.mb&0400 ) {
+                         if ( ( state.ma&07770 )==010 ) state.mem[state.ma] = (state.mem[state.ma]+1) &07777;
+                         if (state.mb&04000)
+                             state.ma=state.mem[state.ma];//+ifl;
+                         else
+                             state.ma=state.mem[state.ma];//+dfl;
+                     }
+                 }
+                 switch ( state.mb&07000 ) {
+                 case 0000:state.ac&=( state.mem[state.ma]|010000 );
+                   break;
+                 case 01000:state.ac+=state.mem[state.ma];
+                  break;
+                 case 02000:if ( ( state.mem[state.ma]=( 1+state.mem[state.ma] )&07777 )==0 ) state.pc++;
+                  break;
+                 case 03000:state.mem[state.ma]=state.ac&07777;
+                            state.ac&=010000;
+                  break;
+                 case 04000:state.mem[state.ma]=state.pc&07777;
+                            state.pc=( state.ma+1 )&07777;
+                  break;
+                 case 05000:state.pc=( state.ma&07777 );
+                  break;
+                 case 06000: flg=0;
+                   state.ac=iot(state.mem,state.ac,state.mb,flg,vrix,vriy )|( state.ac&010000 );
+                   if ( flg ) state.pc++;
+                  break;
+                 case 07000: if ( state.mb&0400 ) {
+                   if ( state.mb&1 ) {group3( state.ac, state.mq, state.mb ); break; }
+                    if ( state.mb&2 ) { return 1; }
+                    state.pc=group2( state.ac, state.pc, state.mb );
+                    if ( state.mb&0200 ) state.ac&=010000;
+                    if ( state.mb&4 ) state.ac|=04002;
+                    break;
+                    }
+                      state.ac=group1( state.ac, state.mb );
+                      break;
+                  }
+                 if ( state.mb!=06001 ) intf=1;//inth;
+                }
 
              int Prun(PDP8_State& state,
                  int &vrix, int &vriy,std::chrono::nanoseconds& total_time)
@@ -493,11 +562,11 @@ typedef int ByteDelegate(int i);
                   static const std::chrono::nanoseconds iot_cycle_time(4250);
                         int& delay = state.delay;
                         unsigned short& pc = state.pc;
-                        unsigned short& ac = state.ac;
+                       unsigned short& ac = state.ac;
                         unsigned short& ma = state.ma;
                         unsigned short& md = state.mb;
-                        unsigned short* mem = state.mem;
-                        unsigned short& mq = state.mq;
+                       unsigned short* mem = state.mem;
+                       unsigned short& mq = state.mq;
                         unsigned short& swreg = state.sw;
                          int i;
                          int flg, reg=0, msk=0;
@@ -505,9 +574,9 @@ typedef int ByteDelegate(int i);
                        //  unsigned short* pmem = &mem[0]; // Stops CLR from unexpectedly moving the arrays
                          //double filt=0.005;
 
-                         ifl=state.xm;
+                         state.ifl=state.xm;
 
-                         if ( ++ilag>=delay) {
+                         if ( ++ilag>=state.delay) {
                              phcell=~phcell;
                             // reg=dsreg[regsel];
                              msk=040000;
@@ -583,7 +652,7 @@ typedef int ByteDelegate(int i);
                          pc=( ( pc+1 )&07777 );
                          ac&=017777;
                         total_time += memory_cycle_time+memory_cycle_time;
-                         if ((md&07000)<06000)			// DEFER
+                         if ((md&07000)<06000)	{		// DEFER
                               total_time += memory_cycle_time;
                              if ( md&0400 ) {
                                  if ( ( ma&07770 )==010 ) mem[ma]++;
@@ -593,10 +662,11 @@ typedef int ByteDelegate(int i);
                                  else
                                      ma=mem[ma]+dfl;
                              }
+                         }
                              //   printf( "%04o %04o %05o : %05o %04o %04o\n", pc,md,ac,ma,ifl,dfl);
 
                             // dsreg[1]=04000 | ((md&07000)>>3);	// Build display reg (State)
-
+                            assert(ma < 07777);
                              switch ( md&07000 )			// EXECUTE
                              {
                              case 0000:

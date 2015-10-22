@@ -2,7 +2,7 @@
 
 static const int endian_int = 0x12345678;
 
-
+/*
 constexpr bool is_little_endian()
 {
    // constexpr int a = ((int)0x12345678);
@@ -12,7 +12,7 @@ constexpr bool is_little_endian()
 
     return *(unsigned char*)(&endian_int) == 0x78;
 }
-/*
+
 constexpr bool is_big_endian()
 {
     constexpr int a = 0x12345678;

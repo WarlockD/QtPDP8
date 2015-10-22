@@ -14,7 +14,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pdp8Cpu.CPU_Init();
   //  pdp8Cpu.OpenDevices(nullptr,nullptr,nullptr,nullptr,0);
     //pdp8Cpu.LoadBoot((unsigned short*)&pdp8State.mem,false);
-    PDP8::LoadRim("f:\\PDP8\\MAINDEC-8E-D0AB-InstTest-1.pt",pdp8State);
+    PDP8::LoadRim("d:\\PDP8\\MAINDEC-8E-D0AB-InstTest-1.pt",pdp8State);
     pdp8Cpu.state = &pdp8State;
     pdp8State.ma = 0200;
     pdp8State.pc = 0200;
