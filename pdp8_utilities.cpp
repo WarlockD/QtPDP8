@@ -571,7 +571,7 @@ bool fetch_iot (int code, std::string* dis, std::string* com)
     if (com) *com += "unknown IOT";
     return false;
 }
-void simple_dsam8(t_hist s, uint16_t* mem,  std::string& disbuf, std::string&combuf) {
+void simple_dsam8(const InstHistory& s, uint16_t* mem,  std::string& disbuf, std::string&combuf) {
 
      bool		ind, cur;
      unsigned short buf = s.ir;
@@ -779,14 +779,14 @@ void simple_dsam8(t_hist s, uint16_t* mem,  std::string& disbuf, std::string&com
            }
 }
 
-std::string dsam8(PDP8_State& s, bool comment, size_t loc){
+std::string dsam8(const PDP8_State& s, bool comment, size_t loc){
     return "";
 }
 
-std::string dsam8(PDP8_State& s, bool comment){
+std::string dsam8(const PDP8_State& s, bool comment){
     return "";
 }
-std::string dsam8(t_hist s, uint16_t* mem, bool comment){
+std::string dsam8(const InstHistory& s, uint16_t* mem, bool comment){
 
     return "";
 }

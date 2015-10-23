@@ -15,9 +15,20 @@
 #include <iostream>
 #include <mutex>          // std::mutex
 #include <QDebug>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "pdp8i.h"
 
 namespace PDP8 {
-
+struct InstHistory {
+    int32_t               pc;
+    int32_t               ea;
+    int16_t               ir;
+    int16_t               opnd;
+    int16_t               lac;
+    int16_t               mq;
+};
     class TwelveBit { // right now just for adder tester
         short _d  : 12;
     public:
@@ -273,9 +284,7 @@ typedef int ByteDelegate(int i);
              public:
                  int cinf,coutf,pinf,poutf,rinbf,ttyinten1,doutf,dout,ttyinten2;
                  int ibus, intinh, intf, ilag;
-                 int ibf[16]; // 16
-                 int pbf[16];
-                 int abf[16];
+
                  unsigned char ring[4096]; //4096
                  int rngi,rngo;
                  int pbp, dskrg,dskmem,dskad,dskfl,tm,hl,dskema, rfdn;
@@ -316,12 +325,28 @@ typedef int ByteDelegate(int i);
                      terminalOut = terminalIn = debugOut = nullptr;
                  }
              public:
+                 static const int HIST_COUNT = 16;
+                 static const int HIST_MASK = HIST_COUNT-1;
+                 InstHistory hst[HIST_COUNT];
+                 int32_t hst_p ;                                        /* history pointer */
+                public:
 
+                 void pushHistory(PDP8_State& s) {
+                     hst_p &=HIST_MASK;
+                     InstHistory& n = hst[hst_p];
+                     n.pc = s.ma;
+                     n.ir = s.ir;
+                     n.lac = s.ac;
+                     n.mq = s.mq;
+                     n.opnd = s.mb;
+                     hst_p=( hst_p+1 )&HIST_MASK;
+                 }
                  void CPU_Init()
                      {
                      debug_check = false;
                      //	RedirectIOToConsole();
                             pbp=0;
+                            ifl=dfl = 0;
                          ibus=intf=intinh=cinf=coutf=pinf=poutf=ilag=dinf=doutf=dout=0;
                          usint=clken=clkfl=clkcnt=0;
                          rkca=0;rkdn=0;rkda=0;rkcmd=0; // Set for read Diskad:0 -> mem[0]
@@ -456,7 +481,10 @@ typedef int ByteDelegate(int i);
                              if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
 
                              // longer run
-                             if(ret !=0) state->run = false;
+                             if(ret !=0) {
+                                 state->run = false;
+
+                             }
                          }
 
 
@@ -480,10 +508,10 @@ typedef int ByteDelegate(int i);
                          terminal_in.pop();
                          cinf = toupper(nch) | 0200;
                          if (cinf == 0200 + 5) { // ^E .. Halt
-                             for (int i = 0; i<15; i++) {
-                                 printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
-                                 pbp = (pbp + 1) & 15;
-                             }
+                          //   for (int i = 0; i<15; i++) {
+                          //       printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
+                           //      pbp = (pbp + 1) & 15;
+                          //   }
                            //  xpc = pc; xac = ac; xmq = mq;
                              return (1);
                          }
@@ -500,9 +528,7 @@ typedef int ByteDelegate(int i);
                   }
 
               /*   printf( "%04o %05o\n", pc, mem[pc]  ); */
-                 pbf[pbp]=state.pc;
-                ibf[pbp]=state.mem[state.pc];
-                pbp=( pbp+1 )&7;
+                 pushHistory(state);
                  state.mb=state.mem[state.pc];
                  state.ma=( ( state.mb&0177 )+( state.mb&0200?( state.pc&07600 ):0 ) );
                  state.pc=( ( state.pc+1 )&07777 );
@@ -558,6 +584,8 @@ typedef int ByteDelegate(int i);
              int Prun(PDP8_State& state,
                  int &vrix, int &vriy,std::chrono::nanoseconds& total_time)
                      {
+                 ifl = 0;
+                 dfl = 0;
                  static const std::chrono::nanoseconds memory_cycle_time(1500);
                   static const std::chrono::nanoseconds iot_cycle_time(4250);
                         int& delay = state.delay;
@@ -574,7 +602,7 @@ typedef int ByteDelegate(int i);
                        //  unsigned short* pmem = &mem[0]; // Stops CLR from unexpectedly moving the arrays
                          //double filt=0.005;
 
-                         state.ifl=state.xm;
+                         //state.ifl=state.xm;
 
                          if ( ++ilag>=state.delay) {
                              phcell=~phcell;
@@ -600,10 +628,10 @@ typedef int ByteDelegate(int i);
                                  terminal_in.pop();
                                  cinf = toupper(nch) | 0200;
                                  if (cinf == 0200 + 5) { // ^E .. Halt
-                                     for (i = 0; i<15; i++) {
-                                         printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
-                                         pbp = (pbp + 1) & 15;
-                                     }
+                                //     for (i = 0; i<15; i++) {
+                                 //        printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
+                                  //       pbp = (pbp + 1) & 15;
+                                  //   }
                                    //  xpc = pc; xac = ac; xmq = mq;
                                      return (1);
                                  }
@@ -641,10 +669,7 @@ typedef int ByteDelegate(int i);
                              dfr=ifr=dfl=ifl=uflag=0;
                          }
 
-                         pbf[pbp]=pc+ifl;				// Looped buffer holding last 16 cycles for debug
-                         ibf[pbp]=mem[pc+ifl];
-                         abf[pbp]=ac;
-                         pbp=( pbp+1 )&15;
+                         pushHistory(state);
 
 
                          md=mem[pc+ifl];					// FETCH
@@ -719,8 +744,11 @@ typedef int ByteDelegate(int i);
                                      if ( md&4 ) { if (uflag==3) usint=1; else ac|=swreg; }
                                      if ( md&2 ) {
                                          if (uflag==3) {usint=1;break;}
+                                         char line[128];
                                          for (i=0;i<16;i++) {
-                                             printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
+                                             pushHistory(state);
+                                             sprintf(line,"%05o %04o %05o\n", hst[pbp].pc, hst[pbp].ir, hst[pbp].lac);
+                                             qDebug() << line;
                                              pbp=(pbp+1)&15;
                                          }
                                        //  xpc=pc; xac=ac; xmq=mq;

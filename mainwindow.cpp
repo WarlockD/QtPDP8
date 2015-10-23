@@ -51,8 +51,14 @@ void MainWindow::on_timer() {
     ui->labelMA->setText(QString::number(pdp8State.ma,8));
     int c =      pdp8Cpu.GetTerminalOut();
     if(c !=-1){
-        pdp8Cpu.terminal_out.pop();
-        ui->simpleConsole->putData(QChar::fromLatin1(c));
+        const QChar ch = QChar::fromLatin1(c);
+        if(ch.isPrint() || ch == '\r' || ch == '\n') ui->simpleConsole->putData(QChar::fromLatin1(c));
+        else {
+            QString s = QString("Printable(\"%1\")").arg(c);
+
+            ui->simpleConsole->putData(s.toLatin1());
+        }
+
     }
 
    // ui->labelAC->setText(QString::number(pdp8State.ac,8));
