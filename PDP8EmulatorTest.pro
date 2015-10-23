@@ -19,7 +19,11 @@ SOURCES += main.cpp\
     octalvalidator.cpp \
     console.cpp \
     pdp8i.cpp \
-    pdp8_utilities.cpp
+    pdp8_utilities.cpp \
+    numberarea.cpp \
+    codeeditor.cpp \
+    pdp8dissmwindow.cpp \
+    pdp8dissam.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -27,7 +31,11 @@ HEADERS  += mainwindow.h \
     octalvalidator.h \
     console.h \
     pdp8i.h \
-    pdp8_utilities.h
+    pdp8_utilities.h \
+    numberarea.h \
+    codeeditor.h \
+    pdp8dissmwindow.h \
+    pdp8dissam.h
 
 FORMS    += mainwindow.ui
 include(panelswitch.pri)
