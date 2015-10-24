@@ -13,7 +13,7 @@ class MainWindow;
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
+    bool last_run_state;
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();

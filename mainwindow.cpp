@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "pdp8_utilities.h"
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -21,6 +22,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //ui->switchRow->setSr(030);
     ui->switchRow->setSr(07777);
      pdp8Cpu.runIt(pdp8State);
+     last_run_state= false;
 }
 
 MainWindow::~MainWindow()
@@ -60,7 +62,13 @@ void MainWindow::on_timer() {
         }
 
     }
-
+    if(last_run_state && !pdp8State.run) {
+        std::string sstring = pdp8Cpu.hst.disam_text(pdp8State.mem);
+        QString str = QString::fromStdString(sstring);
+        qDebug() << str;
+        last_run_state = false;
+    }
+    if(pdp8State.run && !last_run_state) last_run_state = true;
    // ui->labelAC->setText(QString::number(pdp8State.ac,8));
 
 }

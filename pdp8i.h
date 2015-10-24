@@ -12,6 +12,7 @@
 #include <string>
 #include <cstring>
 #include <stdexcept>
+#include <sstream>
 #include <iostream>
 #include <mutex>          // std::mutex
 #include <QDebug>
@@ -29,6 +30,7 @@ struct InstHistory {
     int16_t               lac;
     int16_t               mq;
 };
+
     class TwelveBit { // right now just for adder tester
         short _d  : 12;
     public:
@@ -81,6 +83,13 @@ typedef int ByteDelegate(int i);
         ButtonPause,
         ProgramBreak
     };
+    class PDP8_State;
+    std::string dsam8(const PDP8_State& s, bool comment, size_t loc);
+    std::string dsam8(const PDP8_State& s, bool comment=false);
+    std::string dsam8(const InstHistory& s, uint16_t* mem, bool comment=false);
+    void simple_dsam8(const InstHistory& s, uint16_t* mem,  std::string& disbuf, std::string&combuf);
+
+
     struct FileBuffer {
         std::vector<char> m_vec;
         size_t m_index;
@@ -221,8 +230,56 @@ typedef int ByteDelegate(int i);
 
 
     // This is the main part of the cpu.
+
     struct PDP8_State {
+        class HistoryMaker {
+            static const int HIST_PC = 0x40000000;
+            static const int HIST_MIN = 64;
+            static const int HIST_MAX = 65536;
+            static const int HIST_COUNT = 16;
+            static const int HIST_MASK = HIST_COUNT-1;
+            InstHistory hst[HIST_COUNT];
+            int32_t hst_p = 0;                                        /* history pointer */
+           public:
+            HistoryMaker() : hst_p(0) {}
+            void push(PDP8_State& s) {
+                InstHistory& n = hst[hst_p];
+                n.pc = s.ma | HIST_PC;
+                n.ir = s.ir;
+                n.lac = s.ac;
+                n.mq = s.mq;
+                n.opnd = s.mb;
+                hst_p=( hst_p+1 )&HIST_MASK;
+            }
+            InstHistory& operator[](int i) { return hst[i & HIST_MASK]; }
+            std::string disam_text(uint16_t* mem) const {
+                char line[128];
+
+                std::string dif;
+                std::string com;
+                int32_t p = hst_p;
+                std::stringstream ret;
+                for(int i=0;i<HIST_COUNT;i++){
+                    const InstHistory& h = hst[hst_p];
+                    if(h.pc & HIST_PC) {
+                        simple_dsam8(h,mem,dif,com);
+                        int l = (h.lac >> 12) & 1;                         /* link */
+                        sprintf (line, "%05o  %o %04o  %04o  ", h.pc & 017777, l, h.lac & 07777, h.mq);
+                        ret << line;
+                        if (h.ir < 06000)
+                                   sprintf (line, "%05o  ", h.ea);
+                               else sprintf (line, "       ");
+                        ret << line;
+                        ret << dif << " : " << com << std::endl;
+                    }
+
+                    p=( p-1)&HIST_MASK;
+                }
+                return ret.str();
+            }
+        };
         State state;
+        HistoryMaker hst;
          std::mutex mtx; // healper mutex as it should of been created by the main thread
        // PDP8Memory mem;
         unsigned short mem[32768];
@@ -239,6 +296,10 @@ typedef int ByteDelegate(int i);
         bool checkInterrupt() const { return interrupt_enable && interrupt_enable_delay &&  intrupet_request !=0; } // temp
         bool skip;
         int delay;
+        void save_history();
+        std::string print_history();
+
+
         PDP8_State() { power();
                       // PDP8Memory.resize(32768);
                      }
@@ -273,6 +334,13 @@ typedef int ByteDelegate(int i);
                                 virtual void execute(PDP8_State& s) {}
 
                             };
+
+                                                            void PDP8_State::save_history() {
+                                                                hst.push(*this);
+                                                            }
+                                                            std::string PDP8_State::print_history(){
+                                                                return hst.disam_text(mem);
+                                                            }
      class Emx8 {
          bool debug_check;
          static const int SECSIZE = 256;
@@ -327,19 +395,12 @@ typedef int ByteDelegate(int i);
              public:
                  static const int HIST_COUNT = 16;
                  static const int HIST_MASK = HIST_COUNT-1;
-                 InstHistory hst[HIST_COUNT];
-                 int32_t hst_p ;                                        /* history pointer */
+
+
                 public:
 
                  void pushHistory(PDP8_State& s) {
-                     hst_p &=HIST_MASK;
-                     InstHistory& n = hst[hst_p];
-                     n.pc = s.ma;
-                     n.ir = s.ir;
-                     n.lac = s.ac;
-                     n.mq = s.mq;
-                     n.opnd = s.mb;
-                     hst_p=( hst_p+1 )&HIST_MASK;
+                     s.save_history();
                  }
                  void CPU_Init()
                      {
