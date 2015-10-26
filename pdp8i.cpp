@@ -25,7 +25,7 @@ constexpr bool is_big_endian()
 */
  std::mutex main_thread_mtx;
 namespace PDP8 {
-
+/*
 int Emx8::GetTerminalOut() {
     if(debug_check)
         qDebug() << "We are already running?";
@@ -41,9 +41,9 @@ int Emx8::GetTerminalOut() {
     debug_check = false;
     return ret;
 }
-
+*/
 // better or worst than a macro?
-template<typename T> T static inline INC12(const T v) { return (v+1) & 07777; }
+
 /*
  *
             md=mem[pc+ifl];					// FETCH
@@ -61,7 +61,7 @@ template<typename T> T static inline INC12(const T v) { return (v+1) & 07777; }
                     else
                         ma=mem[ma]+dfl;
                 }
-                */
+
 
 void checkint(PDP8_State& s) {
     if(s.checkInterrupt()) {
@@ -148,4 +148,5 @@ void execute(PDP8_State& s) {
         s.state = State::Fetch;
     }
 }
+*/
 }

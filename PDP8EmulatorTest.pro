@@ -23,7 +23,8 @@ SOURCES += main.cpp\
     numberarea.cpp \
     codeeditor.cpp \
     pdp8dissmwindow.cpp \
-    pdp8dissam.cpp
+    pdp8dissam.cpp \
+    pdp8state.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -35,7 +36,8 @@ HEADERS  += mainwindow.h \
     numberarea.h \
     codeeditor.h \
     pdp8dissmwindow.h \
-    pdp8dissam.h
+    pdp8dissam.h \
+    pdp8state.h
 
 FORMS    += mainwindow.ui
 include(panelswitch.pri)

@@ -1,9 +1,11 @@
 #include "codeeditor.h"
+#include <QPainter>
+#include <QTextBlock>
 
 
 CodeEditor::CodeEditor(QWidget *parent) : QPlainTextEdit(parent)
 {
-    lineNumberArea = new LineNumberArea(this);
+    lineNumberArea = new NumberArea(this);
 
     connect(this, SIGNAL(blockCountChanged(int)), this, SLOT(updateLineNumberAreaWidth(int)));
     connect(this, SIGNAL(updateRequest(QRect,int)), this, SLOT(updateLineNumberArea(QRect,int)));

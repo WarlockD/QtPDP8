@@ -33,10 +33,8 @@ private slots:
 private:
     Ui::MainWindow *ui;
     QTimer *timer;
-    PDP8::PDP8_State pdp8State;
-    PDP8::Emx8 pdp8Cpu;
-
-
+    PDP8::Cpu cpu;
+    PDP8::SimpleTTY* tty;
 };
 
 #endif // MAINWINDOW_H

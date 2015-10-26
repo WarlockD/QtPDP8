@@ -8,6 +8,7 @@
 #include <chrono>
 #include <memory>
 #include <fstream>
+#include <hash_map>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -18,63 +19,15 @@
 #include <QDebug>
 #include <stdio.h>
 #include <stdlib.h>
+#include <atomic>
 
-#include "pdp8i.h"
+#include "pdp8state.h"
+#include "pdp8_utilities.h"
+#include "pdp8dissam.h"
 
 namespace PDP8 {
-struct InstHistory {
-    int32_t               pc;
-    int32_t               ea;
-    int16_t               ir;
-    int16_t               opnd;
-    int16_t               lac;
-    int16_t               mq;
-};
-
-    class TwelveBit { // right now just for adder tester
-        short _d  : 12;
-    public:
-        template<typename T> inline TwelveBit(T v) : _d(static_cast<short>(v)) {}
-#define AOPR(b) template<typename T> inline TwelveBit operator b(T a) { _d b static_cast<short>(a); return *this; }  inline TwelveBit operator b(TwelveBit a) { _d b a._d; return *this; }
-        AOPR(=) AOPR(+=)AOPR(-=) AOPR(|=) AOPR(&=) AOPR(^=)
-#undef AOPR
 
 
-    };
-typedef std::vector<unsigned short> PDP8Memory;
-typedef int ByteDelegate(int i);
-//pbf[pbp]=pc+ifl;				// Looped buffer holding last 16 cycles for debug
-//ibf[pbp]=mem[pc+ifl];
-//abf[pbp]=ac;
-//pbp=( pbp+1 )&15;
-    enum class State {
-        Fetch,
-        Defer,
-        Execute,
-        Iot,
-        Opr
-    };
-
-
-    struct PDP8Regs {
-        unsigned short ac, pc, mq, sw, md, ma,xm;
-    };
-    struct RingBuffer {
-        PDP8Regs buffer[16];
-        size_t pos;
-        void push(PDP8Regs& a) {
-            buffer[pos] = a;
-             pos=( pos+1 )&15;
-        }
-
-    };
-    class PDP8_Exception : std::exception {
-        std::string msg;
-    public:
-        PDP8_Exception(const std::string& msg) : msg(msg) {}
-        const char* what() const _NOEXCEPT { return msg.c_str(); }
-
-    };
 
     enum class  BreakState {
         Running,
@@ -83,264 +36,441 @@ typedef int ByteDelegate(int i);
         ButtonPause,
         ProgramBreak
     };
-    class PDP8_State;
-    std::string dsam8(const PDP8_State& s, bool comment, size_t loc);
-    std::string dsam8(const PDP8_State& s, bool comment=false);
-    std::string dsam8(const InstHistory& s, uint16_t* mem, bool comment=false);
-    void simple_dsam8(const InstHistory& s, uint16_t* mem,  std::string& disbuf, std::string&combuf);
 
-
-    struct FileBuffer {
-        std::vector<char> m_vec;
-        size_t m_index;
-        bool _open;
-        void openFile(const char* name) {
-            m_index = 0;
-            m_vec.clear();
-            FILE* f = fopen(name,"rb");
-            fseek(f, 0, SEEK_END); // seek to end of file
-            size_t size = ftell(f); // get current file pointer
-            fseek(f, 0, SEEK_SET); // seek back to beginning of file
-
-            m_vec.resize(size);
-            fread(&m_vec[0],sizeof(char),size,f);
-            fclose(f);
-            _open = true;
+    // this class is a serial interface to an internal of a device
+    // This is a byte interface that only lets you transver one byte at a time
+    // Its atomic though
+    // No need for atomics, but just to be safe, watch the order of setting the
+    // flags
+    class SerialInterface {
+    protected: // for the internal
+        bool _dataReady;
+        bool _dataReceived;
+        char _dataIn;
+        char _dataOut;
+    public:
+        SerialInterface() : _dataReady(0), _dataReceived(0), _dataIn(0), _dataOut(0) {}
+        virtual void reset() { _dataReady=_dataReceived=false; }
+        bool trasmit(char data) {
+            if(_dataReceived) return false;
+            _dataIn = data;
+            _dataReceived = true;
         }
-        operator bool() const { return _open; }
-        void write(char* p, size_t size)
-        {
-            if(eof())
-                throw std::runtime_error("Premature end of array!");
-
-            if((m_index + size) > m_vec.size())
-                throw std::runtime_error("Premature end of array!");
-
-            std::memcpy(reinterpret_cast<void*>(&m_vec[m_index]), p, size);
-
-            m_index += size;
+        bool received(char& data) {
+            if(!_dataReady) return false;
+            data = _dataOut;
+            _dataReady = false;
         }
-         template<typename T>
-        void write(const T& t)
-        {
-            std::vector<char> vec(sizeof(T));
-            std::memcpy(reinterpret_cast<void*>(&vec[0]), reinterpret_cast<const void*>(&t), sizeof(T));
-            write(vec);
-        }
+        // clear to send
+        inline bool cts() const { return !_dataReceived; }
+        // data set ready
+        inline bool dsr() const { return _dataReady; }
+        inline void setCts(bool v) { _dataReceived = v; }
+        inline void setDsr(bool v) { _dataReady = v; }
 
-        FileBuffer() : m_index(0) {}
-           FileBuffer(const char * mem, size_t size)
-           {
-               open(mem, size);
-           }
-           FileBuffer(const std::vector<char>& vec)
-           {
-               m_index = 0;
-               m_vec.clear();
-               m_vec.reserve(vec.size());
-               m_vec.assign(vec.begin(), vec.end());
-           }
-           void open(const char * mem, size_t size)
-           {
-               m_index = 0;
-               m_vec.clear();
-               m_vec.reserve(size);
-               m_vec.assign(mem, mem + size);
-           }
-           void close()
-           {
-               m_vec.clear();
-           }
-           bool eof() const
-           {
-               return m_index >= m_vec.size();
-           }
-           std::ifstream::pos_type tellg()
-           {
-               return m_index;
-           }
-           bool seekg (size_t pos)
-           {
-               if(pos<m_vec.size())
-                   m_index = pos;
-               else
-                   return false;
-
-               return true;
-           }
-           bool seekg (std::streamoff offset, std::ios_base::seekdir way)
-           {
-               if(way==std::ios_base::beg && offset < m_vec.size())
-                   m_index = offset;
-               else if(way==std::ios_base::cur && (m_index + offset) < m_vec.size())
-                   m_index += offset;
-               else if(way==std::ios_base::end && (m_vec.size() + offset) < m_vec.size())
-                   m_index = m_vec.size() + offset;
-               else
-                   return false;
-
-               return true;
-           }
-
-           const std::vector<char>& get_internal_vec()
-           {
-               return m_vec;
-           }
-
-           template<typename T>
-           void read(T& t)
-           {
-               if(eof())
-                   throw std::runtime_error("Premature end of array!");
-
-               if((m_index + sizeof(T)) > m_vec.size())
-                   throw std::runtime_error("Premature end of array!");
-
-               std::memcpy(reinterpret_cast<void*>(&t), &m_vec[m_index], sizeof(T));
-
-               m_index += sizeof(T);
-           }
-           void readPDP8(unsigned short* p, size_t size) {
-               if(eof())
-                   throw std::runtime_error("Premature end of array!");
-
-               if((m_index + size) > m_vec.size())
-                   throw std::runtime_error("Premature end of array!");
-
-               for(size_t i=0;i<size;i++)
-                   p[i] = m_vec[m_index++];
-
-           }
-
-           void read(char* p, size_t size)
-           {
-               if(eof())
-                   throw std::runtime_error("Premature end of array!");
-
-               if((m_index + size) > m_vec.size())
-                   throw std::runtime_error("Premature end of array!");
-
-               std::memcpy(reinterpret_cast<void*>(p), &m_vec[m_index], size);
-
-               m_index += size;
-           }
     };
 
-// This class contains all the regesters of the PDP8 CPU as well as a helper disassembler
+    class SimpleTTY : public Device {
+        SerialInterface _outside; // outside
+        SerialInterface _internal;  // in PDP8
+        SimpleTimer _timer;
+public:
+        SimpleTTY(CpuState& c) :   Device(c) {
+            _timer.setInterval(100);
+            _timer.setFunction([this]() {
+                char data;
+                if(_internal.cts() && _outside.dsr()) {
+                    _outside.received(data);
+                    _internal.trasmit(data);
+                }
+                if(_internal.dsr() && _outside.cts()) {
+                    _outside.trasmit(data);
+                    _internal.received(data);
+                }
+            });
+            _timer.start();
+        }
+        SerialInterface& serialInterface() { return _outside; }
+        void clear() override { _internal.reset(); }
+        void iot() override{
+            Regesters& r = c.regs();
+            char data;
+            switch( r.mb&0777 ) {
+            case 030:  _internal.setDsr(false); break;
 
+            case 031:  c.setSkip(_internal.dsr()); break;
 
-    // This is the main part of the cpu.
+            case 032:  _internal.setDsr(false); r.lac &= 010000; break;
+            case 034:   if(_internal.dsr()) r.lac &= 1;break; //               return( acc|cinf );
+            case 036:  _internal.received(data); r.lac &= 010000 & data; break;
+            case 040:  _internal.setCts(true); break;
+            case 041:   c.setSkip(_internal.cts()); break;
+            case 042:  _internal.setCts(false); break;
+                case 044:  _internal.trasmit(r.lac&0177);  break;
+            case 046:  _internal.setCts(false); break;
 
-    struct PDP8_State {
-        class HistoryMaker {
-            static const int HIST_PC = 0x40000000;
-            static const int HIST_MIN = 64;
-            static const int HIST_MAX = 65536;
-            static const int HIST_COUNT = 16;
-            static const int HIST_MASK = HIST_COUNT-1;
-            InstHistory hst[HIST_COUNT];
-            int32_t hst_p = 0;                                        /* history pointer */
-           public:
-            HistoryMaker() : hst_p(0) {}
-            void push(PDP8_State& s) {
-                InstHistory& n = hst[hst_p];
-                n.pc = s.ma | HIST_PC;
-                n.ir = s.ir;
-                n.lac = s.ac;
-                n.mq = s.mq;
-                n.opnd = s.mb;
-                hst_p=( hst_p+1 )&HIST_MASK;
+                }
+          }
+
+        std::string debug() const  override { return std::string("grr"); }
+    };
+
+    class Cpu : public CpuState {
+    public:
+        static SimpleTTY& InstallSimpleTTY(Cpu& cpu) {
+            SimpleTTY* t = new  SimpleTTY(cpu);
+            for(int i=030;i < 050;i++) cpu._iots[030] = t;
+            return*t;
+        }
+
+    protected:
+        bool key_in;
+        unsigned char key;
+        int cinf;
+        uint64_t time;
+          int ilag;
+        std::hash_map<int,Device*> _iots;
+        std::queue<int> terminal_in;
+        std::queue<int> terminal_out;
+        RegesterHistory hst;
+    public:
+        Cpu() {
+            cinf=ilag=0;
+
+        }
+        void terminalIn(int c) {
+            terminal_in.emplace(c);
+        }
+
+        void checkInterupts() {
+            if(_interrupt_enable_delay) _interrupt_enable = true;
+
+            if ( haveInterrupt() ) {				// INTERRUPT
+                m[0]=r.pc&07777;
+                r.pc=1;
+                _interrupt_enable = _interrupt_enable_delay = false;
+                r.svr=(r.ifr>>9)+(r.dfr>>12);
+               // if (uflag==3) svr|=0100;
+
+                r.dfr=r.ifr=0;
+             //   dfr=ifr=dfl=ifl=uflag=0;
+            } else {
+               if(_skip) { r.ma = (r.pc+ 1) & 0xFFF; _skip = false; } else  r.ma = r.pc;
             }
-            InstHistory& operator[](int i) { return hst[i & HIST_MASK]; }
-            std::string disam_text(uint16_t* mem) const {
-                char line[128];
+          }
 
-                std::string dif;
-                std::string com;
-                int32_t p = hst_p;
-                std::stringstream ret;
-                for(int i=0;i<HIST_COUNT;i++){
-                    const InstHistory& h = hst[hst_p];
-                    if(h.pc & HIST_PC) {
-                        simple_dsam8(h,mem,dif,com);
-                        int l = (h.lac >> 12) & 1;                         /* link */
-                        sprintf (line, "%05o  %o %04o  %04o  ", h.pc & 017777, l, h.lac & 07777, h.mq);
-                        ret << line;
-                        if (h.ir < 06000)
-                                   sprintf (line, "%05o  ", h.ea);
-                               else sprintf (line, "       ");
-                        ret << line;
-                        ret << dif << " : " << com << std::endl;
+        void iot() {
+            int devcode = (r.mb & 0x1F8) >> 3;
+           // int opcode = r.mb & 0x7;
+           // if(_iots[devcode] != nullptr) _iots[devcode]->iot();
+            if(devcode==0) {
+            switch( r.mb&0777 ) {
+                case 000:  if(_interrupt_enable) _skip = true;
+                  break;
+                case 001:  _interrupt_enable_delay=true;
+                  break;
+                case 002:  _interrupt_enable=_interrupt_enable_delay=false;
+                  break;
+                case 003:  if ( _intrupet_request )  _interrupt_enable_delay=true;
+                  break;
+                case 004:  r.lac=( r.lac&010000 )>>1;
+                  if ( _interrupt_enable ) r.lac|=0200;
+                  if ( _intrupet_request ) r.lac|=01000;
+                  break;
+                case 005:  _intrupet_request =(r.lac&0200) !=0;
+                  if ( r.lac&04000 ) r.lac|=010000;
+                  _interrupt_enable_delay=false;
+                  break;
+                    }
+            }
+        }
+
+        int step() {
+        //  if (((this.data.fset == 1 ? 1 : 0) & (this.data.cpma == 191 ? 1 : 0)) != 0) {  this.data.run = true;
+                  // if (this.data.intinprog) setInterruptOff;
+            if(_state == State::Fetch) r.ma = r.ifr << 12;
+            switch(_state) {
+                case State::Fetch: fetch(); break;
+                case State::Defer: defer(); break;
+                case State::Execute: execute(); break;
+            }
+            return 0;
+        }
+
+        void stupid_step() {
+            if ( ++ilag==100 ) {
+                if(haveInterrupt()) {
+                    m[0]=r.pc&07777;
+                    r.pc = 1;
+                    _interrupt_enable=_interrupt_enable_delay=false;
+                }
+                if(!terminal_in.empty()){
+                    int nch = terminal_in.front();
+                    terminal_in.pop();
+                    cinf = toupper(nch) | 0200;
+                    if (cinf == 0200 + 5) { // ^E .. Halt
+                   //     for (i = 0; i<15; i++) {
+                    //        printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
+                     //       pbp = (pbp + 1) & 15;
+                     //   }
+                      //  xpc = pc; xac = ac; xmq = mq;
+                        _run = false;
+                        return ;
+                    }
+                    if (cinf == 0200 + 8) cinf = 0377;
+                    if (cinf == 0200 + 24) cinf = 131; // Remap ^X->^C
+                }
+               ilag=0;
+               }
+                    hst.push(r);
+              r.mb=m[r.pc];
+              r.ma=( ( r.mb&0177 )+( r.mb&0200?( r.pc&07600 ):0 ) );
+              r.pc=( ( r.pc+1 )&07777 );
+              r.lac&=017777;
+             // ibus=( cinf||coutf||dskfl );
+              r.ma=SetMa(r.mb,r.ma);
+              switch ( r.mb&07000 ) {
+              case 0000:
+                  r.lac&=( m[r.ma]|010000 );
+                break;
+              case 01000:r.lac+=m[r.ma];
+               break;
+              case 02000:
+                  if ( ( m[r.ma]=( 1+m[r.ma] )&07777 )==0 ) _skip = true;
+               break;
+              case 03000:
+                  m[r.ma]=r.lac&07777;
+                  r.lac&=010000;
+               break;
+              case 04000:
+                  m[r.ma]=r.pc&07777;
+                  r.pc=( r.ma+1 )&07777;
+               break;
+              case 05000:
+                  r.pc=( r.ma&07777 );
+               break;
+              case 06000:
+
+                  iot();
+               // ac=iot( ac, md, &flg )|( ac&010000 );
+              //  if ( flg ) pc++;
+               break;
+              case 07000:
+                  if ( r.mb&0400 ) {
+                      if ( r.mb&0400 ) {
+                         if ( r.mb&1 ) {group3( r.lac, r.mq, r.mb ); break; }
+                         if ( r.mb&2 ) { _run = false; return; }
+                         r.pc=group2( r.lac, r.pc, r.mb );
+                         if ( r.mb&0200 ) r.lac&=010000;
+                         if ( r.mb&4 ) r.lac|=04002;
+                         break;
+                     }
+                  }
+                     r.lac=group1( r.lac, r.mb );
+                     break;
+              }
+              if ( r.mb!=06001 ) _interrupt_enable=_interrupt_enable_delay;
+        }
+
+        int32_t SetMa(int16_t md,int16_t ma){
+           if ((md&07000)<06000)
+            if ( md&0400 ) {
+             if ( ( ma&07770 )==010 ) m[ma] = (m[ma]+1) &07777;
+             return(m[ma]);
+            }
+            return ma;
+          }
+
+        bool isIndirect(uint16_t a) const { return a & 0x100; }
+        bool isCurrent(uint16_t a) const { return a & 0x80; }
+        void fetch() {
+            time += 15UL;
+           r.pc = (r.ma +1) & 0xFFF;
+           _skip = false;
+            r.pc = (r.ma + 1 & 0xFFF);
+          //  if(_interrupt_enable_delay) this.data.intdelay = true;
+             r.mb = m[r.ma | r.ifr];
+             r.ir = r.mb >> 9;
+             switch(r.ir) {
+             case 0: case 1: case 2: case 3: case 4:
+                      r.ma=( ( r.mb&0177 )+( r.mb&0200?( r.pc&07600 ):0 ) );
+                      _state = isIndirect(r.mb) ? State::Defer : State::Execute ;
+                 break;
+             case 5: // simple jump
+                 r.pc = r.mb & 0x7F;
+                 if(isCurrent(r.mb)) r.pc += r.ma & 0xF80;
+                 if(isIndirect(r.mb)) {
+                     r.ma = r.mb & 0x7F;
+                     if(isCurrent(r.mb)) r.pc += r.ma & 0xF80;
+                     _state = State::Defer;
+                 } else
+                 {
+                     checkInterupts();
+                 }
+                 break;
+             case 6:
+                 iot();
+                 checkInterupts();
+                break;
+             case 7:
+                 if ( r.mb&0400 ) {
+                    if ( r.mb&1 ) {group3( r.lac, r.mq, r.mb ); break; }
+                    if ( r.mb&2 ) { _run = false; return; }
+                    r.pc=group2( r.lac, r.pc, r.mb );
+                    if ( r.mb&0200 ) r.lac&=010000;
+                    if ( r.mb&4 ) r.lac|=04002;
+                    break;
+                }
+                r.lac=group1( r.lac, r.mb );
+                break;
+                if ( r.mb!=06001 ) _interrupt_enable_delay = true;// intf=1;//inth;
+                 break;
+             }
+        }
+              void defer() {
+                  time += 15UL;
+                  r.mb = (m[r.ma | r.ifr]+ 1) & 0xFFF;
+                  if((r.ma & 0xFF8) == 8 ){
+                      r.mb = (m[r.ma | r.ifr]+ 1) & 0xFFF;
+                     time += 2UL;  // check pdp8i specs
+                     r.ma = r.mb;
+                     m[r.ma | r.ifr] = r.mb;
+                  }
+                  if(r.ir == 5) {
+                      r.pc = r.ma;
+                      checkInterupts();
+                  } else {
+                      r.ma = r.mb;
+                      _state = State::Execute;
+                  }
+
+        }
+              void execute() {
+
+              }
+
+    private:
+        void group3(int16_t& acc,int16_t& mmq,int16_t xmd )
+            {
+                int16_t qtm;
+
+                if ( xmd&0200 ) acc=acc&010000;
+                if ( xmd==07521 || xmd==07721 ) {
+                    qtm=acc;
+                    acc=mmq|( acc&010000 );
+                    mmq=qtm&07777;
+                    return;
+                }
+                if ( xmd&020 ) {mmq=acc&07777; acc&=010000; }
+                if ( xmd&0100 ) acc|=mmq;
+            }
+
+    int16_t group2(int16_t acc,int16_t xpc,int16_t xmd )
+             {
+                 int16_t state;
+
+                 state=0;
+                 if ( acc&04000 ) state|=0100;
+                 if ( ( acc&07777 )==0 ) state|=040;
+                 if ( acc&010000 ) state|=020;
+                 if ( ( xmd&0160 )==0 ) state=0;
+                 if ( xmd&010 ) {
+                     if ( ( ~state&xmd )==xmd ) return( xpc+1 );
+                     return( xpc );
+                 }
+                 if ( state&xmd ) return( xpc+1 );
+                 return( xpc );
+             }
+
+     int16_t group1(int16_t acc,int16_t md )
+             {
+                 int16_t tmp;
+
+                 if ( md&0200 ) acc&=010000;
+                 if ( md&0100 ) acc&=07777;
+                 if ( md&040 ) acc^=07777;
+                 if ( md&020 ) acc^=010000;
+                 if ( md&1 ) acc++;
+                 acc&=017777;
+                 if ( md&016 )
+                     switch( md&016 )
+                 {
+                     case 2:  tmp=(acc<<6)|((acc>>6)&077);		// BSW .. v untidy!
+                         tmp&=07777;
+                         if (acc&010000) tmp|=010000;
+                         acc=tmp;
+                         break;
+                     case 6:  acc=acc<<1; if ( acc&020000 ) acc++;
+                     case 4:  acc=acc<<1; if ( acc&020000 ) acc++;
+                         break;
+                     case 10:  if ( acc&1 ) acc|=020000; acc=acc>>1;
+                     case 8:  if ( acc&1 ) acc|=020000; acc=acc>>1;
+                         break;
+                 }
+                 return( acc&017777 );
+             }
+    };
+    class ThreadedCPU : public Cpu {
+    public:
+
+        void runIt() {
+            if(_running) throw PDP8_Exception("Thread already running!");
+            std::thread th(&ThreadedCPU::threadRun,this);
+            th.detach();
+        }
+    private:
+        // run this using std::thread
+        void threadRun() {
+            int vrix=0,vriy =0; // just for filler
+            int ret =0;
+            qDebug() << "Starting!";
+            for(;;) { // thread never stops
+
+                if(!_run) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(250)); // sleap for half a sec
+                    _running = false;
+                } else {
+                    _running  = true;
+                    std::chrono::nanoseconds current_cycle = std::chrono::nanoseconds::zero();
+
+                    if(_singleStep) {
+                        // single step
+                        ret = step();
+                        _run = false;
+                    } else {
+                        auto start = std::chrono::high_resolution_clock::now();
+                        for(int i=0;i<10000;i++) {
+                            ret = step();
+                            if(ret != 0 || !_run) break;
+                        }
+                        auto end = std::chrono::high_resolution_clock::now();
+                       // std::chrono::duration<double> diff = end-start;
+                        auto mdiff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
+                        if(true) {
+                            qDebug() << "nanoseconds diffrence: " << mdiff.count();
+                             qDebug() << "current_cycle diffrence: " << current_cycle.count();
+                        }
+                        // debuging?
+                        auto ydiff = std::chrono::duration_cast<std::chrono::nanoseconds>(current_cycle-mdiff);
+                        if(true) {
+                            qDebug() << "nanoseconds Cycle diffrence: " << ydiff.count();
+                        }
+                        if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
+
+                        // longer run
+                        if(ret !=0) {
+                            _run = false;
+
+                        }
                     }
 
-                    p=( p-1)&HIST_MASK;
-                }
-                return ret.str();
+
+               }
+
             }
-        };
-        State state;
-        HistoryMaker hst;
-         std::mutex mtx; // healper mutex as it should of been created by the main thread
-       // PDP8Memory mem;
-        unsigned short mem[32768];
-        // md is the "sense regester, or bus?  Not clear on it but it might be the holding
-        // place comming out of core
-        unsigned short ac, pc, mq, sw, mb, ma,xm,ir,md;
-        unsigned char dfl,ifl;
-        bool run;
-        bool singleStep;
-        bool interrupt_enable;
-        bool interrupt_enable_delay;
-        size_t intrupet_request; // one of these bits are set, then we have a request
-        bool in_interrupt;
-        bool checkInterrupt() const { return interrupt_enable && interrupt_enable_delay &&  intrupet_request !=0; } // temp
-        bool skip;
-        int delay;
-        void save_history();
-        std::string print_history();
-
-
-        PDP8_State() { power();
-                      // PDP8Memory.resize(32768);
-                     }
-
-        inline unsigned short& operator[](int v) { return mem[v]; }
-
-        // when the power switch is turned, this is turned on
-        // clear eveything
-        inline void power() { ac = pc = mq = sw = mb = ma = ir = 0; run = false; state = State::Fetch; }
-
-        // when the start key is pressed
-        inline void start() { interrupt_enable = false;  ac = 0; run = true; }
-        inline void setSR(int i) { sw = i; } // set the SR switch
-        inline void loadAdd() {  pc = sw & 07777; dfl = ((sw>>12) & 07); ifl = ((sw>>15) & 07); }
-        inline void dep() { mb = sw & 07777; mem[ma=pc] = mb;  pc = (pc+1) & 07777; }
-        inline void exam() { mb = mem[ma=pc]; pc = (pc+1) & 07777; }
-        inline void stop() { run = false; }
-        inline void cont() { run = true; }
-        inline void step() { run = false; singleStep = true; }
-
+        }
     };
-                            struct Device {
-                                virtual void clear() = 0;
-                                virtual void power() = 0;
-                                virtual void execute(PDP8_State& s) = 0;
-                                virtual ~Device() {}
-                            };
-                            struct RF08 : public Device {
-                                FileBuffer f;
-                                virtual void clear() {}
-                                virtual void power() {}
-                                virtual void execute(PDP8_State& s) {}
-
-                            };
-
-                                                            void PDP8_State::save_history() {
-                                                                hst.push(*this);
-                                                            }
-                                                            std::string PDP8_State::print_history(){
-                                                                return hst.disam_text(mem);
-                                                            }
+    /*
      class Emx8 {
          bool debug_check;
          static const int SECSIZE = 256;
@@ -383,25 +513,19 @@ typedef int ByteDelegate(int i);
 
              public:
                  int Pmask,dinf,Plen,dtyp,ExtTrm;
-                 ByteDelegate* terminalOut;
-                 ByteDelegate* terminalIn;
-                 ByteDelegate* debugOut;
-                PDP8_State* state;
+                CpuState* state;
              public:
                  Emx8() {
 
-                     terminalOut = terminalIn = debugOut = nullptr;
+
                  }
              public:
-                 static const int HIST_COUNT = 16;
-                 static const int HIST_MASK = HIST_COUNT-1;
+
 
 
                 public:
 
-                 void pushHistory(PDP8_State& s) {
-                     s.save_history();
-                 }
+
                  void CPU_Init()
                      {
                      debug_check = false;
@@ -423,13 +547,13 @@ typedef int ByteDelegate(int i);
                          //OldOut("Not allowed...RK8E\n");
                      }
 
-             void XmInit(int freg)
-                     {
-                         ifr=freg&070;
-                         ifl=ifr<<9;
-                         dfr=(freg&07)<<3;
-                         dfl=dfr<<9;
-                     }
+                 void XmInit(int freg)
+                         {
+                             ifr=freg&070;
+                             ifl=ifr<<9;
+                             dfr=(freg&07)<<3;
+                             dfl=dfr<<9;
+                         }
 
              void XtInit()
                      {
@@ -450,7 +574,7 @@ typedef int ByteDelegate(int i);
                     //         df32=fopen(Df32,"r+b");
                       //   if (Rk05)
                        //      rk05=fopen(Rk05,"r+b");
-                         /*
+
                          if (Ptr&&(msk&1))
                              ptr=fopen(Ptr,"rb");
                          if (Ptp&&(msk&2))
@@ -458,9 +582,9 @@ typedef int ByteDelegate(int i);
                          if (!df32 && !rf08) {
                              df32 = fopen("DF32.DSK", "r+b");
                          }
-*/
 
-                             rk05.openFile("F:\\Downloads\\diagpack2.rk05");// "r+b");
+
+                             //rk05.openFile("F:\\Downloads\\diagpack2.rk05");// "r+b");
 
                      //	rf08=df32;
                      //	rx50=rx50a=fopen("os278wc.bin","r+b");
@@ -482,9 +606,9 @@ typedef int ByteDelegate(int i);
              void LoadBoot(unsigned short* mem,bool  Flg)
                      {
                          unsigned int i;
-                         /* 4kMon DF32 boot */
+                         // 4kMon DF32 boot
                          int ldqr[]={06603,06622,05201,05604,07600};
-                         /* RX50 BOOTSTRAP */
+                         // RX50 BOOTSTRAP
                          int ldqx[]={01061,01046,060,03060,07327,01061,06751,07301,04053,04053,07004,06755,05054,06754,07450,
                                  05020,01061,06751,01061,046,01032,03060,0360,04053,03002,02050,05047,0,06753,05033,06752,05453,0420,020};
 
@@ -507,25 +631,25 @@ typedef int ByteDelegate(int i);
 
 
              // run this using std::thread
-             void threadRun(PDP8_State* state) {
+             void threadRun(CpuState * state) {
                  int vrix=0,vriy =0; // just for filler
                  int ret =0;
                  qDebug() << "Starting!";
                  for(;;) { // thread never stops
 
-                     if(!state->run) std::this_thread::sleep_for(std::chrono::milliseconds(250)); // sleap for half a sec
+                     if(!state->_run) std::this_thread::sleep_for(std::chrono::milliseconds(250)); // sleap for half a sec
                      else {
                          std::chrono::nanoseconds current_cycle = std::chrono::nanoseconds::zero();
 
-                         if(state->singleStep) {
+                         if(state->_singleStep) {
                              // single step
                              ret = Prun(*state,vrix,vriy,current_cycle);
-                             state->run = false;
+                             state->_run = false;
                          } else {
                              auto start = std::chrono::high_resolution_clock::now();
                              for(int i=0;i<10000;i++) {
                                  ret = Prun(*state,vrix,vriy,current_cycle);
-                                 if(ret != 0 || !state->run) break;
+                                 if(ret != 0 || !_run) break;
                              }
                              auto end = std::chrono::high_resolution_clock::now();
                             // std::chrono::duration<double> diff = end-start;
@@ -543,7 +667,7 @@ typedef int ByteDelegate(int i);
 
                              // longer run
                              if(ret !=0) {
-                                 state->run = false;
+                                 _state = false;
 
                              }
                          }
@@ -552,111 +676,25 @@ typedef int ByteDelegate(int i);
                     }
                  }
              }
-             void runIt(PDP8_State& state) {
-                 if(state.run) throw PDP8_Exception("Thread already running!");
-                 std::thread th(&Emx8::threadRun,this,&state);
-                 th.detach();
-             }
-             // crude simple method so I can verfiy agenst
-             // No expanded memory support
-            int Prun1(PDP8_State& state, int &vrix, int &vriy, std::chrono::nanoseconds& total_time){
-                static const std::chrono::nanoseconds memory_cycle_time(1500);
-                 static const std::chrono::nanoseconds iot_cycle_time(4250);
-                 total_time += memory_cycle_time + memory_cycle_time;
-                 if ( ++ilag==100 ) {
-                     if(!terminal_in.empty()){
-                         int nch = terminal_in.front();
-                         terminal_in.pop();
-                         cinf = toupper(nch) | 0200;
-                         if (cinf == 0200 + 5) { // ^E .. Halt
-                          //   for (int i = 0; i<15; i++) {
-                          //       printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
-                           //      pbp = (pbp + 1) & 15;
-                          //   }
-                           //  xpc = pc; xac = ac; xmq = mq;
-                             return (1);
-                         }
-                         if (cinf == 0200 + 8) cinf = 0377;
-                         if (cinf == 0200 + 24) cinf = 131; // Remap ^X->^C
-                     }
 
-                  ilag=0;
-                 }
-                 if ( intf&&ibus ) {
-                  state.mem[0]=state.pc&07777;
-                  state.pc=1;
-                  intf=0;//inth=0;
-                  }
 
-              /*   printf( "%04o %05o\n", pc, mem[pc]  ); */
-                 pushHistory(state);
-                 state.mb=state.mem[state.pc];
-                 state.ma=( ( state.mb&0177 )+( state.mb&0200?( state.pc&07600 ):0 ) );
-                 state.pc=( ( state.pc+1 )&07777 );
-                 state.ac&=017777;
-                 ibus=( cinf||coutf||dskfl );
 
-                    int flg = 0;
-                 // check defer
-                // state.ma=SetMa(state.mb,state.ma);
-                 if ((state.mb&07000)<06000)	{		// DEFER
-                      total_time += memory_cycle_time;
-                     if ( state.mb&0400 ) {
-                         if ( ( state.ma&07770 )==010 ) state.mem[state.ma] = (state.mem[state.ma]+1) &07777;
-                         if (state.mb&04000)
-                             state.ma=state.mem[state.ma];//+ifl;
-                         else
-                             state.ma=state.mem[state.ma];//+dfl;
-                     }
-                 }
-                 switch ( state.mb&07000 ) {
-                 case 0000:state.ac&=( state.mem[state.ma]|010000 );
-                   break;
-                 case 01000:state.ac+=state.mem[state.ma];
-                  break;
-                 case 02000:if ( ( state.mem[state.ma]=( 1+state.mem[state.ma] )&07777 )==0 ) state.pc++;
-                  break;
-                 case 03000:state.mem[state.ma]=state.ac&07777;
-                            state.ac&=010000;
-                  break;
-                 case 04000:state.mem[state.ma]=state.pc&07777;
-                            state.pc=( state.ma+1 )&07777;
-                  break;
-                 case 05000:state.pc=( state.ma&07777 );
-                  break;
-                 case 06000: flg=0;
-                   state.ac=iot(state.mem,state.ac,state.mb,flg,vrix,vriy )|( state.ac&010000 );
-                   if ( flg ) state.pc++;
-                  break;
-                 case 07000: if ( state.mb&0400 ) {
-                   if ( state.mb&1 ) {group3( state.ac, state.mq, state.mb ); break; }
-                    if ( state.mb&2 ) { return 1; }
-                    state.pc=group2( state.ac, state.pc, state.mb );
-                    if ( state.mb&0200 ) state.ac&=010000;
-                    if ( state.mb&4 ) state.ac|=04002;
-                    break;
-                    }
-                      state.ac=group1( state.ac, state.mb );
-                      break;
-                  }
-                 if ( state.mb!=06001 ) intf=1;//inth;
-                }
-
-             int Prun(PDP8_State& state,
+             int Prun(CpuState& state,
                  int &vrix, int &vriy,std::chrono::nanoseconds& total_time)
                      {
                  ifl = 0;
                  dfl = 0;
                  static const std::chrono::nanoseconds memory_cycle_time(1500);
                   static const std::chrono::nanoseconds iot_cycle_time(4250);
-                        int& delay = state.delay;
-                        unsigned short& pc = state.pc;
-                       unsigned short& ac = state.ac;
-                        unsigned short& ma = state.ma;
-                        unsigned short& md = state.mb;
-                       unsigned short* mem = state.mem;
-                       unsigned short& mq = state.mq;
-                        unsigned short& swreg = state.sw;
+                        Regesters& r = state->regs();
+                        static int delay = 0;
+                         short& pc = r.pc;
+                        short& ac = r.ac;
+                         short& ma = r.ma;
+                         short& md = r.mb;
+                        short* mem = r.mem;
+                        short& mq = r.mq;
+                         short& swreg = r.sw;
                          int i;
                          int flg, reg=0, msk=0;
                        //  double *p = &bright[0];
@@ -683,7 +721,7 @@ typedef int ByteDelegate(int i);
                                      *p-=(*p)*filt;
                                  msk=msk>>1;
                              }
-                             */
+
                              if(!terminal_in.empty()){
                                  int nch = terminal_in.front();
                                  terminal_in.pop();
@@ -880,7 +918,7 @@ typedef int ByteDelegate(int i);
                                            poutf=1;
                                            Plen++;
                                        }
-                                       */
+
                                        break;
                              }
                          case 030:
@@ -1070,14 +1108,14 @@ typedef int ByteDelegate(int i);
                                  case 0605:
                                  case 0603:
                                      i=(dskrg&070)<<9;
-                                     dskmem=((mem[07751]+1)&07777)|i;  /* mem */
+                                     dskmem=((mem[07751]+1)&07777)|i;  // mem
                                      tm=(dskrg&03700)<<6;
-                                     dskad=(acc&07777)+tm;           /* dsk */
+                                     dskad=(acc&07777)+tm;           // dsk
                                      i=010000-mem[07750];
                                      p=&xm[dskmem];
                                      df32.seekg(dskad*2);
          //							printf("DF32:%o>%o,",dskad,dskmem);
-                                     if (xmd&2)              /*read */
+                                     if (xmd&2)              //read
                                          df32.read((char*)p,i*2);
                                      else
                                          df32.write((char*)p,i*2);
@@ -1088,7 +1126,7 @@ typedef int ByteDelegate(int i);
                                      break;
                                  case 0611:      dskrg=0;
                                      break;
-                                 case 0615:      dskrg=(acc&07777);              /* register */
+                                 case 0615:      dskrg=(acc&07777);              /* register
                                      break;
                                  case 0616:      acc=(acc&010000)|dskrg;
                                      break;
@@ -1097,7 +1135,7 @@ typedef int ByteDelegate(int i);
                                  case 0622:      if (dskfl) flg=1;
                                      break;
                                  case 0612:      acc=acc&010000;
-                                 case 0621:      flg=1; /* No error */
+                                 case 0621:      flg=1; // No error
                                      break;
                              }
                              if (dtyp)
@@ -1108,13 +1146,13 @@ typedef int ByteDelegate(int i);
                                  case 0605:
                                  case 0603:
                                      i=(dskrg&070)<<9;
-                                     dskmem=((mem[07751]+1)&07777)|i;  /* mem */
-                                     dskad=(acc&07777)|(dskema<<12); /* dsk */
+                                     dskmem=((mem[07751]+1)&07777)|i;  /* mem
+                                     dskad=(acc&07777)|(dskema<<12); /* dsk
                                      i=010000-mem[07750];
                                      p=&xm[dskmem];
                                      rf08.seekg(dskad*2);
                                      printf("RF08:%d>%o,", dskad / 128, dskmem);
-                                     if (xmd&2)              /*read */
+                                     if (xmd&2)              /*read
                                          rf08.read((char*)p,i*2);
                                      else
                                          rf08.write((char*)p,i*2);
@@ -1125,7 +1163,7 @@ typedef int ByteDelegate(int i);
                                      break;
                                  case 0611:      dskrg=0;
                                      break;
-                                 case 0615:      dskrg=(acc&0770);              /* register */
+                                 case 0615:      dskrg=(acc&0770);              /* register
                                      acc&=010000;
                                      break;
                                  case 0616:      acc=(acc&010000)|dskrg;
@@ -1137,8 +1175,8 @@ typedef int ByteDelegate(int i);
                                  case 0622:      if (rfdn) flg=1;
                                      break;
                                  case 0612:      acc&=010000;
-                                     flg=1; /* skip always */
-                                 case 0621:      /* No error skip*/
+                                     flg=1; /* skip always
+                                 case 0621:      /* No error skip
                                      break;
                                  case 0641:		dskema=0;
                                      break;
@@ -1449,6 +1487,7 @@ typedef int ByteDelegate(int i);
              };
 
 
+             */
 }
 
 

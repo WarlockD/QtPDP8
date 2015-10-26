@@ -7,25 +7,7 @@
 
 #include "pdp8i.h"
 
-class PDP8DissmArea
-{
-public:
-    PDP8DissmArea(PDP8DissmWindow *dissmWindow) : QWidget(dissmWindow) {
-        dissmWindow = editor;
-    }
 
-    QSize sizeHint() const Q_DECL_OVERRIDE {
-        return QSize(dissmWindow->lineNumberAreaWidth(), 0);
-    }
-
-protected:
-    void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE {
-        dissmWindow->lineNumberAreaPaintEvent(event);
-    }
-
-private:
-    PDP8DissmWindow *dissmWindow;
-};
 
 class PDP8DissmWindow : public QPlainTextEdit
 {
@@ -46,6 +28,22 @@ private:
     QWidget *dissamArea;
 };
 
+class PDP8DissmArea : public QWidget
+{
+public:
+    PDP8DissmArea(PDP8DissmWindow *window) : QWidget(dissmWindow) , dissmWindow(window){}
 
+    QSize sizeHint() const Q_DECL_OVERRIDE {
+        return QSize(dissmWindow->dissamAreaWidth(), 0);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *event) Q_DECL_OVERRIDE {
+        dissmWindow->dissamAreaPaintEvent(event);
+    }
+
+private:
+    PDP8DissmWindow *dissmWindow;
+};
 
 #endif // PDP8DISSMWINDOW_H
