@@ -15,6 +15,7 @@ PDP8DissmWindow::PDP8DissmWindow(QWidget *parent) : QPlainTextEdit(parent)
 
     void PDP8DissmWindow::updateDissamAreaWidth(int newBlockCount)
     {
+        (void)newBlockCount;
         setViewportMargins(dissamAreaWidth(), 0, 0, 0);
     }
     void PDP8DissmWindow::highlightCurrentLine()

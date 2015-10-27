@@ -119,8 +119,10 @@ protected:
 public: // abstract interface
     virtual void clear() = 0;
     virtual void iot() = 0;
+    virtual void updateInterrupts()=0;
     virtual std::string debug() const = 0;
      virtual ~Device() {}
+
 };
 typedef std::shared_ptr<Device> DevicePtr;
 class CpuState {
@@ -130,16 +132,17 @@ protected:
     MainMemory m;
     uint32_t _sw;
     State _state;
-    bool _run;      // the state of the engine
 
+    bool _run;      // the state of the engine
     bool _running; // on if the thread is running
     bool _singleStep;
     bool _interrupt_enable;
     bool _interrupt_enable_delay;
-    size_t _intrupet_request; // one of these bits are set, then we have a request
+    uint64_t _intrupet_request; // one of these bits are set, then we have a request
     bool _in_interrupt;
     bool _skip;
     DevicePtr _iots[64];
+    friend class Device;
 public:
     CpuState();
 
@@ -172,8 +175,10 @@ public: // getters and setters
     inline bool running() const { return _running; }
     inline bool singleStep() const { return _singleStep; }
     inline bool skip() const { return _skip; }
-    inline void setSkip(bool skip) { _skip = skip; }
+    inline void setSkip() { _skip = true; }
     inline State state() const { return _state; }
+    inline void setInterrupt(char dev) { _intrupet_request |= ((uint64_t)1 << dev); }
+    inline void clearInterrupt(char dev) { _intrupet_request &= ~((uint64_t)1 << dev); }
     friend class Cpu; // frend of the CPU class since that calls can screw with anything
     friend class Emx8;
 

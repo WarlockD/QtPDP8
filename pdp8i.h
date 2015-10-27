@@ -24,7 +24,7 @@
 #include "pdp8state.h"
 #include "pdp8_utilities.h"
 #include "pdp8dissam.h"
-
+#include "timer.h"
 namespace PDP8 {
 
 
@@ -42,74 +42,90 @@ namespace PDP8 {
     // Its atomic though
     // No need for atomics, but just to be safe, watch the order of setting the
     // flags
-    class SerialInterface {
-    protected: // for the internal
-        bool _dataReady;
-        bool _dataReceived;
-        char _dataIn;
-        char _dataOut;
-    public:
-        SerialInterface() : _dataReady(0), _dataReceived(0), _dataIn(0), _dataOut(0) {}
-        virtual void reset() { _dataReady=_dataReceived=false; }
-        bool trasmit(char data) {
-            if(_dataReceived) return false;
-            _dataIn = data;
-            _dataReceived = true;
-        }
-        bool received(char& data) {
-            if(!_dataReady) return false;
-            data = _dataOut;
-            _dataReady = false;
-        }
-        // clear to send
-        inline bool cts() const { return !_dataReceived; }
-        // data set ready
-        inline bool dsr() const { return _dataReady; }
-        inline void setCts(bool v) { _dataReceived = v; }
-        inline void setDsr(bool v) { _dataReady = v; }
-
+    struct SerialInterface {
+        virtual bool haveData() const =0;
+        virtual char received()=0;
+        virtual void trasmit(char data) =0;
+        virtual ~SerialInterface() {}
     };
 
-    class SimpleTTY : public Device {
-        SerialInterface _outside; // outside
-        SerialInterface _internal;  // in PDP8
+
+    class SimpleTTY : public Device, public SerialInterface {
+        const uint64_t ttiDev = 030;
+        const uint64_t ttoDev = 040;
+        bool _tti;
+        bool _tto;
+        bool _intEnabled;
+        char _ttiData;
+        char _ttoData;
         SimpleTimer _timer;
+        // data in
+        bool _sendData;
+        bool _getData;
+        bool _dataRecived;
+        bool _dataSent;
 public:
+         bool haveData() const override{ return _sendData && !_dataSet; }
+        void trasmit(char data) override{
+            if(_getData && !_dataRecived) {
+                _ttiData = data;
+                _dataRecived = true;
+            }
+        }
+        char received() override {
+            char data = 0;
+            if(_sendData && !_dataSet) {
+                _dataSent = true;
+                data = _ttoData;
+            }
+            return data;
+        }
+
         SimpleTTY(CpuState& c) :   Device(c) {
             _timer.setInterval(100);
             _timer.setFunction([this]() {
-                char data;
-                if(_internal.cts() && _outside.dsr()) {
-                    _outside.received(data);
-                    _internal.trasmit(data);
+                if(_sendData && _dataSent) {
+                    _sendData = _dataSent = false;
+                    _tto = true;
                 }
-                if(_internal.dsr() && _outside.cts()) {
-                    _outside.trasmit(data);
-                    _internal.received(data);
+                if(_getData && _recivedData {
+                    _recivedData = _getData = false;
+                    _tti = true;
                 }
             });
             _timer.start();
         }
-        SerialInterface& serialInterface() { return _outside; }
-        void clear() override { _internal.reset(); }
+
+        void clear() override {
+            _tti = _tto = false; _intEnabled = true;
+            _haveData = _dataTrasmited = false;
+        }
+        void updateInterrupts() override {
+            if(_intEnabled) {
+                if(_tti) c.setInterrupt(ttiDev); else c.clearInterrupt(ttiDev);
+                if(_tto) c.setInterrupt(ttoDev); else c.clearInterrupt(ttoDev);
+            } else
+                c.clearInterrupt(ttiDev|ttoDev);
+        }
+
         void iot() override{
             Regesters& r = c.regs();
-            char data;
             switch( r.mb&0777 ) {
-            case 030:  _internal.setDsr(false); break;
+                case 030:  _tti = false;  break;
+                case 031:  if(_tti) c.setSkip() ; break;
+                case 032:  _tti = false;  r.lac &= 010000;_getData = true;  break;
+                case 034:   if(_tti) r.lac |= 1; break;
+                case 035:  _intEnabled = r.lac & 1 ? true : false;
+                case 036:  _tti = false; r.lac &= 010000 & _ttiData; _getData = true; break;
 
-            case 031:  c.setSkip(_internal.dsr()); break;
-
-            case 032:  _internal.setDsr(false); r.lac &= 010000; break;
-            case 034:   if(_internal.dsr()) r.lac &= 1;break; //               return( acc|cinf );
-            case 036:  _internal.received(data); r.lac &= 010000 & data; break;
-            case 040:  _internal.setCts(true); break;
-            case 041:   c.setSkip(_internal.cts()); break;
-            case 042:  _internal.setCts(false); break;
-                case 044:  _internal.trasmit(r.lac&0177);  break;
-            case 046:  _internal.setCts(false); break;
-
-                }
+                case 040:  _tto = true; break;
+                case 041:  if(_tto) c.setSkip() ;  break;
+                case 042:  _tto = false; break;
+                case 044:  _ttoData=r.lac&0377; _sendData = true; break;
+                case 045:  if(_tti|_tto) c.setSkip(); break;
+                case 046:  _tto = false;  _ttoData=r.lac&0377; _sendData = true; break;
+            }
+            updateInterrupts();
           }
 
         std::string debug() const  override { return std::string("grr"); }
@@ -182,6 +198,8 @@ public:
                   _interrupt_enable_delay=false;
                   break;
                     }
+            } else {
+                if(_iots[devcode]) _iots[devcode]->iot();
             }
         }
 
@@ -197,31 +215,13 @@ public:
             return 0;
         }
 
-        void stupid_step() {
-            if ( ++ilag==100 ) {
+        int stupid_step() {
                 if(haveInterrupt()) {
                     m[0]=r.pc&07777;
                     r.pc = 1;
                     _interrupt_enable=_interrupt_enable_delay=false;
                 }
-                if(!terminal_in.empty()){
-                    int nch = terminal_in.front();
-                    terminal_in.pop();
-                    cinf = toupper(nch) | 0200;
-                    if (cinf == 0200 + 5) { // ^E .. Halt
-                   //     for (i = 0; i<15; i++) {
-                    //        printf("%05o %04o %05o\n", pbf[pbp], ibf[pbp], abf[pbp]);
-                     //       pbp = (pbp + 1) & 15;
-                     //   }
-                      //  xpc = pc; xac = ac; xmq = mq;
-                        _run = false;
-                        return ;
-                    }
-                    if (cinf == 0200 + 8) cinf = 0377;
-                    if (cinf == 0200 + 24) cinf = 131; // Remap ^X->^C
-                }
-               ilag=0;
-               }
+
                     hst.push(r);
               r.mb=m[r.pc];
               r.ma=( ( r.mb&0177 )+( r.mb&0200?( r.pc&07600 ):0 ) );
@@ -259,10 +259,10 @@ public:
                   if ( r.mb&0400 ) {
                       if ( r.mb&0400 ) {
                          if ( r.mb&1 ) {group3( r.lac, r.mq, r.mb ); break; }
-                         if ( r.mb&2 ) { _run = false; return; }
+                         if ( r.mb&2 ) { _run = false; return 1; }
                          r.pc=group2( r.lac, r.pc, r.mb );
                          if ( r.mb&0200 ) r.lac&=010000;
-                         if ( r.mb&4 ) r.lac|=04002;
+                         if ( r.mb&4 ) r.lac|=_sw & 07777;
                          break;
                      }
                   }
@@ -270,6 +270,7 @@ public:
                      break;
               }
               if ( r.mb!=06001 ) _interrupt_enable=_interrupt_enable_delay;
+              return 0;
         }
 
         int32_t SetMa(int16_t md,int16_t ma){
@@ -410,65 +411,51 @@ public:
                  return( acc&017777 );
              }
     };
-    class ThreadedCPU : public Cpu {
-    public:
 
-        void runIt() {
-            if(_running) throw PDP8_Exception("Thread already running!");
-            std::thread th(&ThreadedCPU::threadRun,this);
-            th.detach();
+
+    class ThreadedCPU : public Cpu, public SimpleThread {
+        //std::mutex _mtx; // just in case
+  public:
+        ThreadedCPU() {
+            startThread();
         }
-    private:
+  protected:
         // run this using std::thread
-        void threadRun() {
-            int vrix=0,vriy =0; // just for filler
-            int ret =0;
-            qDebug() << "Starting!";
-            for(;;) { // thread never stops
+        inline bool threadFunction() override {
+            int ret = 0;
+            if(!_run) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(50)); // sleap for a bit
+                _running = false;
+            } else {
+                _running  = true;
+                std::chrono::nanoseconds current_cycle = std::chrono::nanoseconds::zero();
 
-                if(!_run) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(250)); // sleap for half a sec
-                    _running = false;
+                if(_singleStep) {
+                    // single step
+                    ret = stupid_step();
+                   // ret = step();
+                    _run = false;
                 } else {
-                    _running  = true;
-                    std::chrono::nanoseconds current_cycle = std::chrono::nanoseconds::zero();
-
-                    if(_singleStep) {
-                        // single step
-                        ret = step();
-                        _run = false;
-                    } else {
-                        auto start = std::chrono::high_resolution_clock::now();
-                        for(int i=0;i<10000;i++) {
-                            ret = step();
-                            if(ret != 0 || !_run) break;
-                        }
-                        auto end = std::chrono::high_resolution_clock::now();
-                       // std::chrono::duration<double> diff = end-start;
-                        auto mdiff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
-                        if(true) {
-                            qDebug() << "nanoseconds diffrence: " << mdiff.count();
-                             qDebug() << "current_cycle diffrence: " << current_cycle.count();
-                        }
-                        // debuging?
-                        auto ydiff = std::chrono::duration_cast<std::chrono::nanoseconds>(current_cycle-mdiff);
-                        if(true) {
-                            qDebug() << "nanoseconds Cycle diffrence: " << ydiff.count();
-                        }
-                        if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
-
-                        // longer run
-                        if(ret !=0) {
-                            _run = false;
-
-                        }
+                    auto start = std::chrono::high_resolution_clock::now();
+                    for(int i=0;i<1000;i++) {
+                      //  ret = step();
+                        ret = stupid_step();
+                        if(ret != 0 || !_run) break;
                     }
+                    auto end = std::chrono::high_resolution_clock::now();
+                   // std::chrono::duration<double> diff = end-start;
+                    auto mdiff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
+                    auto ydiff = std::chrono::duration_cast<std::chrono::nanoseconds>(current_cycle-mdiff);
+                    if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
+                    if(ret !=0) {
+                        _run = false;
 
-
-               }
-
+                  }
+                }
             }
+            return true; // always return true as this never stops
         }
+
     };
     /*
      class Emx8 {

@@ -15,13 +15,16 @@ MainWindow::MainWindow(QWidget *parent) :
     cpu.power();
   //  pdp8Cpu.OpenDevices(nullptr,nullptr,nullptr,nullptr,0);
     //pdp8Cpu.LoadBoot((unsigned short*)&pdp8State.mem,false);
-   // PDP8::LoadRim("d:\\PDP8\\MAINDEC-8E-D0AB-InstTest-1.pt",pdp8State);
+
+    PDP8::LoadRim("d:\\PDP8\\MAINDEC-8E-D0AB-InstTest-1.pt",cpu);
   //  pdp8Cpu.state = &pdp8State;
 //    pdp8State.ma = 0200;
 //    pdp8State.pc = 0200;
     //ui->switchRow->setSr(030);
       tty=  &PDP8::Cpu::InstallSimpleTTY(cpu);
     ui->switchRow->setSr(07777);
+    cpu.regs().ma = 0200;
+    cpu.regs().pc = 0200;
    //  pdp8Cpu.runIt(pdp8State);
      last_run_state= false;
 }
@@ -51,9 +54,8 @@ void MainWindow::on_timer() {
     ui->labelMB->setText(QString::number(r.mb,8));
     ui->labelMA->setText(QString::number(r.ma,8));
 
-    if(tty && tty->serialInterface().dsr()){
-        char c;
-        tty->serialInterface().received(c);
+    if(tty && tty->haveData() ){
+        char c = tty->received();
         const QChar ch = QChar::fromLatin1(c);
         if(ch.isPrint() || ch == '\r' || ch == '\n') ui->simpleConsole->putData(QChar::fromLatin1(c));
         else {
@@ -88,10 +90,10 @@ void MainWindow::on_pushButton_7_clicked()
 
 void MainWindow::on_pushButton_5_clicked()
 {
-      cpu.run();
+      cpu.cont();
 }
 
 void MainWindow::on_pushButton_6_clicked()
 {
-     cpu.step();
+     cpu.singleStep();
 }

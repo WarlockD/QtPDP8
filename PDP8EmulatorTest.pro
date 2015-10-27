@@ -24,7 +24,8 @@ SOURCES += main.cpp\
     codeeditor.cpp \
     pdp8dissmwindow.cpp \
     pdp8dissam.cpp \
-    pdp8state.cpp
+    pdp8state.cpp \
+    timer.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -37,7 +38,8 @@ HEADERS  += mainwindow.h \
     codeeditor.h \
     pdp8dissmwindow.h \
     pdp8dissam.h \
-    pdp8state.h
+    pdp8state.h \
+    timer.h
 
 FORMS    += mainwindow.ui
 include(panelswitch.pri)
