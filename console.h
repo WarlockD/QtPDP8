@@ -15,6 +15,7 @@ public:
 
     void putData(const QByteArray &data);
     void putData(const QChar c);
+    void putData(const QString& s);
     void setLocalEchoEnabled(bool set);
 
 public slots:

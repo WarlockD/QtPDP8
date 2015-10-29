@@ -44,61 +44,70 @@ namespace PDP8 {
     // flags
     struct SerialInterface {
         virtual bool haveData() const =0;
-        virtual char received()=0;
-        virtual void trasmit(char data) =0;
+        virtual int received()=0;
+        virtual void trasmit(unsigned char data) =0;
         virtual ~SerialInterface() {}
     };
 
 
     class SimpleTTY : public Device, public SerialInterface {
+        class SimpleBuffer {
+            std::queue<unsigned char> _data;
+        public:
+            void reset() { while(!_data.empty()) _data.pop(); }
+            void putData(unsigned char c) { _data.push(c); }
+            int  getData() {
+                if(!_data.empty()) {
+                    unsigned char c = _data.front();
+                    _data.pop();
+                    return c;
+                }
+                return -1;
+            }
+            bool haveData() const { return !_data.empty(); }
+        };
+        SimpleBuffer _outBuffer;
+        SimpleBuffer _inBuffer;
         const uint64_t ttiDev = 030;
         const uint64_t ttoDev = 040;
         bool _tti;
         bool _tto;
         bool _intEnabled;
-        char _ttiData;
-        char _ttoData;
+        bool _startPrint;
+        bool _startRead;
+        unsigned char _ttiData;
+        unsigned char _ttoData;
         SimpleTimer _timer;
-        // data in
-        bool _sendData;
-        bool _getData;
-        bool _dataRecived;
-        bool _dataSent;
+
 public:
-         bool haveData() const override{ return _sendData && !_dataSet; }
-        void trasmit(char data) override{
-            if(_getData && !_dataRecived) {
-                _ttiData = data;
-                _dataRecived = true;
-            }
-        }
-        char received() override {
-            char data = 0;
-            if(_sendData && !_dataSet) {
-                _dataSent = true;
-                data = _ttoData;
-            }
-            return data;
-        }
+         bool haveData() const override{ return _outBuffer.haveData(); }
+        void trasmit(unsigned char data) override{  _inBuffer.putData(data); }
+
+        int received() override { return _outBuffer.getData(); }
 
         SimpleTTY(CpuState& c) :   Device(c) {
+            clear();
             _timer.setInterval(100);
             _timer.setFunction([this]() {
-                if(_sendData && _dataSent) {
-                    _sendData = _dataSent = false;
+                if(_startPrint) {
+                    _outBuffer.putData(_ttoData & 0077);
+                    _startPrint = false;
                     _tto = true;
                 }
-                if(_getData && _recivedData {
-                    _recivedData = _getData = false;
+                if(_startRead && _inBuffer.haveData()) {
+                    _ttiData  = _inBuffer.getData() | 0200;
+                    _startRead = false;
                     _tti = true;
                 }
+                updateInterrupts();
             });
             _timer.start();
         }
 
         void clear() override {
-            _tti = _tto = false; _intEnabled = true;
-            _haveData = _dataTrasmited = false;
+            _tti = _tto = false;
+            _intEnabled = true;
+            _startRead = _startPrint = false;
         }
         void updateInterrupts() override {
             if(_intEnabled) {
@@ -113,29 +122,37 @@ public:
             switch( r.mb&0777 ) {
                 case 030:  _tti = false;  break;
                 case 031:  if(_tti) c.setSkip() ; break;
-                case 032:  _tti = false;  r.lac &= 010000;_getData = true;  break;
+                case 032:  _tti = false;  r.lac &= 010000; _startRead = true; break;
                 case 034:   if(_tti) r.lac |= 1; break;
                 case 035:  _intEnabled = r.lac & 1 ? true : false;
-                case 036:  _tti = false; r.lac &= 010000 & _ttiData; _getData = true; break;
+                case 036:  _tti = false; r.lac &= 010000 & _ttiData; _startRead = true;  break;
 
                 case 040:  _tto = true; break;
                 case 041:  if(_tto) c.setSkip() ;  break;
                 case 042:  _tto = false; break;
-                case 044:  _ttoData=r.lac&0377; _sendData = true; break;
+                case 044:  _ttoData=r.lac&0377; _startPrint = true; break;
                 case 045:  if(_tti|_tto) c.setSkip(); break;
-                case 046:  _tto = false;  _ttoData=r.lac&0377; _sendData = true; break;
+                case 046:  _tto = false;  _ttoData=r.lac&0377; _startPrint = true; break;
             }
             updateInterrupts();
           }
-
-        std::string debug() const  override { return std::string("grr"); }
+        std::string debug() const  override {
+            std::stringstream s;
+            s << " _tti=" << (_tti ? "true" : "false");
+            s << " _tto=" << (_tto ? "true" : "false");
+            s << std::endl;
+            return s.str();
+        }
     };
 
     class Cpu : public CpuState {
     public:
         static SimpleTTY& InstallSimpleTTY(Cpu& cpu) {
             SimpleTTY* t = new  SimpleTTY(cpu);
-            for(int i=030;i < 050;i++) cpu._iots[030] = t;
+            DevicePtr ptr(t);
+            cpu._iots[003] = ptr;
+            cpu._iots[004] = ptr;
+           // for(int i=030;i < 050;i++) cpu._iots[030] = t;
             return*t;
         }
 
@@ -145,7 +162,6 @@ public:
         int cinf;
         uint64_t time;
           int ilag;
-        std::hash_map<int,Device*> _iots;
         std::queue<int> terminal_in;
         std::queue<int> terminal_out;
         RegesterHistory hst;
@@ -159,7 +175,7 @@ public:
         }
 
         void checkInterupts() {
-            if(_interrupt_enable_delay) _interrupt_enable = true;
+
 
             if ( haveInterrupt() ) {				// INTERRUPT
                 m[0]=r.pc&07777;
@@ -173,6 +189,7 @@ public:
             } else {
                if(_skip) { r.ma = (r.pc+ 1) & 0xFFF; _skip = false; } else  r.ma = r.pc;
             }
+             if(_interrupt_enable_delay) _interrupt_enable = true;
           }
 
         void iot() {
@@ -180,30 +197,43 @@ public:
            // int opcode = r.mb & 0x7;
            // if(_iots[devcode] != nullptr) _iots[devcode]->iot();
             if(devcode==0) {
-            switch( r.mb&0777 ) {
-                case 000:  if(_interrupt_enable) _skip = true;
-                  break;
-                case 001:  _interrupt_enable_delay=true;
-                  break;
-                case 002:  _interrupt_enable=_interrupt_enable_delay=false;
-                  break;
-                case 003:  if ( _intrupet_request )  _interrupt_enable_delay=true;
-                  break;
-                case 004:  r.lac=( r.lac&010000 )>>1;
-                  if ( _interrupt_enable ) r.lac|=0200;
-                  if ( _intrupet_request ) r.lac|=01000;
-                  break;
-                case 005:  _intrupet_request =(r.lac&0200) !=0;
-                  if ( r.lac&04000 ) r.lac|=010000;
-                  _interrupt_enable_delay=false;
-                  break;
-                    }
+                switch( r.mb&0777 ) {
+                    case 000:
+                        if(_interrupt_enable) _skip = true;
+                      break;
+                    case 001:
+                        _interrupt_enable_delay=true;
+                      break;
+                    case 002:
+                        _interrupt_enable=_interrupt_enable_delay=false;
+                      break;
+                    case 003:
+                        if ( _intrupet_request )  _interrupt_enable_delay=true;
+                      break;
+                    case 004:
+                        r.lac=( r.lac&010000 )>>1;
+                        if ( _interrupt_enable ) r.lac|=0200;
+                        if ( _intrupet_request ) r.lac|=01000;
+                      break;
+                    case 005:
+                        _intrupet_request =(r.lac&0200) !=0;
+                        if ( r.lac&04000 ) r.lac|=010000;
+                        _interrupt_enable_delay=false;
+                    break;
+                    case 0007: // caf this is NOT in pdp8i, but only way I can get
+                        r.lac = 0;
+                        _interrupt_enable=_interrupt_enable_delay=false;
+                        for(int i=0;i<64;i++ )
+                            if(_iots[i])
+                                _iots[i]->clear();
+                      break;
+                }
             } else {
                 if(_iots[devcode]) _iots[devcode]->iot();
             }
         }
 
-        int step() {
+        int stepSwitch() {
         //  if (((this.data.fset == 1 ? 1 : 0) & (this.data.cpma == 191 ? 1 : 0)) != 0) {  this.data.run = true;
                   // if (this.data.intinprog) setInterruptOff;
             if(_state == State::Fetch) r.ma = r.ifr << 12;
@@ -219,9 +249,10 @@ public:
                 if(haveInterrupt()) {
                     m[0]=r.pc&07777;
                     r.pc = 1;
+                    r.svr=(r.ifr>>9)+(r.dfr>>12);
                     _interrupt_enable=_interrupt_enable_delay=false;
                 }
-
+                 _interrupt_enable=_interrupt_enable_delay;
                     hst.push(r);
               r.mb=m[r.pc];
               r.ma=( ( r.mb&0177 )+( r.mb&0200?( r.pc&07600 ):0 ) );
@@ -269,7 +300,8 @@ public:
                      r.lac=group1( r.lac, r.mb );
                      break;
               }
-              if ( r.mb!=06001 ) _interrupt_enable=_interrupt_enable_delay;
+            //  if ( r.mb!=06001 ) _interrupt_enable=_interrupt_enable_delay;
+              if(_skip) { r.pc = (r.pc+ 1) & 0xFFF; _skip = false; }// else  r.ma = r.pc;
               return 0;
         }
 
@@ -447,10 +479,7 @@ public:
                     auto mdiff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
                     auto ydiff = std::chrono::duration_cast<std::chrono::nanoseconds>(current_cycle-mdiff);
                     if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
-                    if(ret !=0) {
-                        _run = false;
-
-                  }
+                    if(ret !=0) _run = false;
                 }
             }
             return true; // always return true as this never stops

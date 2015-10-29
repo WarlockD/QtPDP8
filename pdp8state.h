@@ -79,6 +79,7 @@ class SimpleTimer
              if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
              else throw new std::runtime_error("Task too long");
         }
+        _running = false;
     }
 
 public:
@@ -86,7 +87,7 @@ public:
     ~SimpleTimer() {
         if(_run) {
             _run = false;
-            _thread->join();
+            while(_running);
         }
     }
 
@@ -125,6 +126,16 @@ public: // abstract interface
 
 };
 typedef std::shared_ptr<Device> DevicePtr;
+enum class PanelToggleSwitch {
+    Start,
+    Stop,
+    Cont,
+    SingleStep,
+    Dep,
+    Exam,
+    LoadAdd
+};
+
 class CpuState {
 protected:
     static const size_t MAX_MEMORY = 32768;
@@ -156,15 +167,10 @@ public: // diffrent switches
 
 
     // when the start key is pressed
-    inline void start() { _interrupt_enable = false;  r.lac = 0; _singleStep = false;  _run = true; }
     inline void setSR(uint32_t i) { _sw = i; } // set the SR switch
     inline uint32_t getSR() const { return _sw; }
-    inline void loadAdd() {  r.pc = _sw & 07777; r.dfr = ((_sw>>12) & 07); r.ifr = ((_sw>>15) & 07); }
-    inline void dep() { r.mb = _sw & 07777; m[r.ma=r.pc] = r.mb;  r.pc = (r.pc+1) & 07777; }
-    inline void exam() { r.mb = m[r.ma=r.pc]; r.pc = (r.pc+1) & 07777; }
-    inline void stop() { _run = false; }
-    inline void cont() { _run = true; }
-    inline void step() { _run = false; _singleStep = true; }
+    void panelSwitch(PanelToggleSwitch s); // most are toggle so might not use state much
+
 
 public: // getters and setters
     inline Regesters& regs() { return r; }

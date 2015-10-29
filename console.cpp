@@ -25,7 +25,12 @@ void Console::putData(const QByteArray &data)
     QScrollBar *bar = verticalScrollBar();
     bar->setValue(bar->maximum());
 }
+void Console::putData(const QString& s) {
+    insertPlainText(s);
 
+    QScrollBar *bar = verticalScrollBar();
+    bar->setValue(bar->maximum());
+}
  void Console::putData(const QChar c) {
      insertPlainText(QString(c));
      QScrollBar *bar = verticalScrollBar();
