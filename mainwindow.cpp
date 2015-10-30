@@ -21,7 +21,7 @@ MainWindow::MainWindow(QWidget *parent) :
 //    pdp8State.ma = 0200;
 //    pdp8State.pc = 0200;
     //ui->switchRow->setSr(030);
-      tty=  &PDP8::Cpu::InstallSimpleTTY(cpu);
+      tty=  PDP8::Cpu::InstallSimpleTTY(cpu);
     ui->switchRow->setSr(07777);
     cpu.regs().ma = 0200;
     cpu.regs().pc = 0200;
@@ -69,7 +69,7 @@ void MainWindow::on_timer() {
 
     }
     if(tty) {
-        std::string s = tty->debug();
+        std::string s = cpu.printState();
         ui->debugConsole->clear();
         ui->debugConsole->putData(QString::fromStdString(s));
     }
@@ -119,10 +119,15 @@ void MainWindow::on_pushButton_8_clicked()
 void MainWindow::on_pushButton_9_clicked()
 {
     cpu.power();
-
+//cpu.panelSwitch(PDP8::PanelToggleSwitch::Power);
     PDP8::LoadRim("d:\\PDP8\\MAINDEC-8E-D0BB-InstTest-2.pt",cpu);
     ui->switchRow->setSr(07777);
     cpu.regs().ma = 0200;
     cpu.regs().pc = 0200;
      last_run_state= false;
+}
+
+void MainWindow::on_pushButton_11_clicked()
+{
+    cpu.panelSwitch(PDP8::PanelToggleSwitch::Clear);
 }

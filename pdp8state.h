@@ -1,15 +1,8 @@
 #ifndef PDP8STATE_H
 #define PDP8STATE_H
 
-#include <iterator>
-#include <cstdint>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <thread>
-#include <chrono>
-#include <memory>
-#include <atomic>
+#include "includes.h"
+#include "pdp8interrupts.h"
 
 namespace PDP8 {
 enum class State {
@@ -30,6 +23,15 @@ struct Regesters {
     int16_t ma;
     int16_t mb;
     int16_t svr;
+    int16_t gtf;
+    int16_t sf;
+    uint16_t iot_data; // humm garbage noise?
+    char emode;
+    char UF;
+    char IF;
+    char UB;
+    char IB;
+    char DF;
     char ibr;
     char ifr;
     char dfr;
@@ -126,6 +128,7 @@ public: // abstract interface
 
 };
 typedef std::shared_ptr<Device> DevicePtr;
+
 enum class PanelToggleSwitch {
     Start,
     Stop,
@@ -133,7 +136,8 @@ enum class PanelToggleSwitch {
     SingleStep,
     Dep,
     Exam,
-    LoadAdd
+    LoadAdd,
+    Clear // Not a real switch. Does what start does without the run flipflop
 };
 
 class CpuState {
@@ -147,11 +151,22 @@ protected:
     bool _run;      // the state of the engine
     bool _running; // on if the thread is running
     bool _singleStep;
-    bool _interrupt_enable;
-    bool _interrupt_enable_delay;
-    uint64_t _intrupet_request; // one of these bits are set, then we have a request
-    bool _in_interrupt;
+    bool _no_ion_pending;
+    bool _no_cif_pending;
+    bool _int_ion;
+
+    std::atomic<uint64_t> _dev_done;// = 0;                                     /* dev done flags */
+    std::atomic<uint64_t>  _int_enable;// = INT_INIT_ENABLE;                     /* intr enables */
+    std::atomic<uint64_t>  _int_req ;                                      /* intr requests */
+    uint64_t _int_has_enable; // mask for enables on reset
+
     bool _skip;
+    // Devices and interrupts
+    // After trial and error decided to just
+    // copy the method used in simh verison of PDP8
+    // The advantage is that we can check all the
+    // dev's here and all the settings are convently
+    // set up as a bunch of templates.
     DevicePtr _iots[64];
     friend class Device;
 public:
@@ -174,8 +189,6 @@ public: // diffrent switches
 
 public: // getters and setters
     inline Regesters& regs() { return r; }
-    inline bool haveInterrupt() const { return _interrupt_enable && _interrupt_enable_delay &&  _intrupet_request !=0; } // temp
-    inline bool interruptsEnabled() const { return _interrupt_enable && _interrupt_enable_delay;}
     inline unsigned short& operator[](int v) { return m[v]; }
     inline bool run() const { return _run; }
     inline bool running() const { return _running; }
@@ -183,11 +196,40 @@ public: // getters and setters
     inline bool skip() const { return _skip; }
     inline void setSkip() { _skip = true; }
     inline State state() const { return _state; }
-    inline void setInterrupt(char dev) { _intrupet_request |= ((uint64_t)1 << dev); }
-    inline void clearInterrupt(char dev) { _intrupet_request &= ~((uint64_t)1 << dev); }
+public:
+    inline void enableInterrupts() { _int_ion = true; }
+    inline  void disabbleInterrupts() { _int_ion = false; }
+    inline void updateInterrupts()  { _int_req = (_int_req &~_int_has_enable) | (_dev_done & _int_enable); }
+
+    void installDevInt(char dev,bool defaultIntEnable) {
+        if(defaultIntEnable) _int_has_enable |=((uint64_t)1<<dev); else _int_has_enable &=~((uint64_t)1<<dev);
+       // _iots[dev & 077] = ptr;
+    }
+    void removeDevEnableInt(char dev) {
+        _int_has_enable &=~((uint64_t)1<<dev);
+      //  _iots[dev & 077] = nullptr;
+    }
+    //inline void clearIonDelay() { _no_ion_pending = true; } // CPU uses this
+
+
+  //  DevicePtr operator[](char dev) { return _iots[dev & 077]; }
+    inline void enableDevInterrupt(char dev) {  _int_enable |= ((uint64_t)1<<dev); }
+    inline void disableDevInterrupt(char dev) { _int_enable &= ~((uint64_t)1<<dev); }
+    inline bool isInterruptEnabled(char dev) const { return ((_int_has_enable & ((uint64_t)1<<dev)) & _int_enable) != 0; }
+    inline void setInterruptRequest(char dev) { _int_req |= ((uint64_t)1<<dev);  }
+    inline void clearInterruptRequest(char dev) { _int_req &= ~((uint64_t)1<<dev);  }
+    inline bool hasInterrupt(char dev) const { return ((_int_enable & ((uint64_t)1<<dev)) & _int_req) != 0;  }
+    inline bool isDone(char dev) const { return _dev_done & ((uint64_t)1<<dev); }
+    inline void setDone(char dev)  { _dev_done |= ((uint64_t)1<<dev);  }
+    inline void clearDone(char dev)  { _dev_done &= ~((uint64_t)1<<dev); }
+    inline bool interruptPending() const {
+        if(_int_ion && _no_cif_pending && _no_ion_pending) return _int_req > 0;
+        return false;
+    }
     friend class Cpu; // frend of the CPU class since that calls can screw with anything
     friend class Emx8;
-
+    friend class BasicInterruptSystem;
+    std::string printState() const;
 };
 
 }

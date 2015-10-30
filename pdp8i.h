@@ -1,25 +1,8 @@
 #ifndef PDP8I_H
 #define PDP8I_H
 
-#include <iostream>
-#include <cassert>
-#include <thread>
-#include <queue>
-#include <chrono>
-#include <memory>
-#include <fstream>
-#include <hash_map>
-#include <vector>
-#include <string>
-#include <cstring>
-#include <stdexcept>
-#include <sstream>
-#include <iostream>
-#include <mutex>          // std::mutex
-#include <QDebug>
-#include <stdio.h>
-#include <stdlib.h>
-#include <atomic>
+#include "includes.h"
+#include "pdp8interrupts.h"
 
 #include "pdp8state.h"
 #include "pdp8_utilities.h"
@@ -68,8 +51,8 @@ namespace PDP8 {
         };
         SimpleBuffer _outBuffer;
         SimpleBuffer _inBuffer;
-        const uint64_t ttiDev = 030;
-        const uint64_t ttoDev = 040;
+        const uint64_t ttiDev = 03;
+        const uint64_t ttoDev = 04;
         bool _tti;
         bool _tto;
         bool _intEnabled;
@@ -86,56 +69,72 @@ public:
         int received() override { return _outBuffer.getData(); }
 
         SimpleTTY(CpuState& c) :   Device(c) {
-            clear();
+
             _timer.setInterval(100);
             _timer.setFunction([this]() {
                 if(_startPrint) {
                     _outBuffer.putData(_ttoData & 0077);
                     _startPrint = false;
-                    _tto = true;
+                    this->c.setDone(ttoDev);
+                    this->c.updateInterrupts();
                 }
-                if(_startRead && _inBuffer.haveData()) {
+                if(_startRead && !this->c.isDone(ttiDev) && _inBuffer.haveData()) {
                     _ttiData  = _inBuffer.getData() | 0200;
+                    this->c.setDone(ttiDev);
+                    this->c.updateInterrupts();
                     _startRead = false;
-                    _tti = true;
                 }
-                updateInterrupts();
+
             });
             _timer.start();
         }
 
         void clear() override {
-            _tti = _tto = false;
-            _intEnabled = true;
-            _startRead = _startPrint = false;
+            c.clearDone(ttiDev);
+            c.clearInterruptRequest(ttiDev);
+            c.enableDevInterrupt(ttiDev);
+            c.clearDone(ttoDev);
+            c.clearInterruptRequest(ttoDev);
+            c.enableDevInterrupt(ttoDev);
+            c.updateInterrupts();
         }
         void updateInterrupts() override {
-            if(_intEnabled) {
-                if(_tti) c.setInterrupt(ttiDev); else c.clearInterrupt(ttiDev);
-                if(_tto) c.setInterrupt(ttoDev); else c.clearInterrupt(ttoDev);
-            } else
-                c.clearInterrupt(ttiDev|ttoDev);
+
         }
 
         void iot() override{
             Regesters& r = c.regs();
             switch( r.mb&0777 ) {
-                case 030:  _tti = false;  break;
-                case 031:  if(_tti) c.setSkip() ; break;
-                case 032:  _tti = false;  r.lac &= 010000; _startRead = true; break;
-                case 034:   if(_tti) r.lac |= 1; break;
-                case 035:  _intEnabled = r.lac & 1 ? true : false;
-                case 036:  _tti = false; r.lac &= 010000 & _ttiData; _startRead = true;  break;
-
-                case 040:  _tto = true; break;
-                case 041:  if(_tto) c.setSkip() ;  break;
-                case 042:  _tto = false; break;
+                case 030:  c.clearDone(ttiDev); c.clearInterruptRequest(ttiDev);   break;
+                case 031:  if(c.isDone(ttiDev)) c.setSkip() ; break;
+                case 032:  c.clearDone(ttiDev); c.clearInterruptRequest(ttiDev);   r.lac &= 010000; _startRead = true; break;
+                case 034:   r.lac |= _ttiData; break;
+            case 035:  if(r.lac & 1) {
+                    c.enableDevInterrupt(ttiDev);
+                    c.enableDevInterrupt(ttoDev);
+                } else {
+                    c.disableDevInterrupt(ttiDev);
+                    c.disableDevInterrupt(ttoDev);
+                }
+                    c.updateInterrupts();
+                break;
+                case 036:
+                 c.clearDone(ttiDev);
+                 c.clearInterruptRequest(ttiDev);
+                   c.updateInterrupts();
+                  _startRead = true;
+                break;
+                case 040:  c.setDone(ttoDev); c.updateInterrupts(); break;
+                case 041:  if(c.isDone(ttoDev)) c.setSkip() ;  break;
+                case 042:  c.clearDone(ttoDev); c.clearInterruptRequest(ttoDev); break;
+                case 045:  if(c.hasInterrupt(ttoDev) || c.hasInterrupt(ttiDev)) c.setSkip(); break;
+                case 046:
+                        c.clearDone(ttoDev);
+                        c.clearInterruptRequest(ttoDev);
+                        // fall though
                 case 044:  _ttoData=r.lac&0377; _startPrint = true; break;
-                case 045:  if(_tti|_tto) c.setSkip(); break;
-                case 046:  _tto = false;  _ttoData=r.lac&0377; _startPrint = true; break;
-            }
-            updateInterrupts();
           }
+        }
         std::string debug() const  override {
             std::stringstream s;
             s << " _tti=" << (_tti ? "true" : "false");
@@ -147,13 +146,15 @@ public:
 
     class Cpu : public CpuState {
     public:
-        static SimpleTTY& InstallSimpleTTY(Cpu& cpu) {
-            SimpleTTY* t = new  SimpleTTY(cpu);
-            DevicePtr ptr(t);
-            cpu._iots[003] = ptr;
-            cpu._iots[004] = ptr;
+        static std::shared_ptr<SimpleTTY> InstallSimpleTTY(Cpu& cpu) {
+            std::shared_ptr<SimpleTTY> ptr = std::make_shared<SimpleTTY>(cpu);
+            cpu.installDev(ptr,03,true);
+            cpu.installDev(ptr,04,true);
+           // cpu._iots[03] = ptr;
+            //cpu._iots[04] = ptr;
+            ptr->clear();
            // for(int i=030;i < 050;i++) cpu._iots[030] = t;
-            return*t;
+            return ptr;
         }
 
     protected:
@@ -167,8 +168,17 @@ public:
         RegesterHistory hst;
     public:
         Cpu() {
-            cinf=ilag=0;
 
+            cinf=ilag=0;
+        }
+        void installDev(DevicePtr ptr, char dev,bool defaultIntEnable) {
+            installDevInt(dev,defaultIntEnable);
+            //if(defaultIntEnable) _int._int_has_enable |=((uint64_t)1<<dev); else _int._int_has_enable &=~((uint64_t)1<<dev);
+            _iots[dev & 077] = ptr;
+        }
+        void removeDevEnable(char dev) {
+            removeDevEnableInt(dev);
+            _iots[dev & 077] = nullptr;
         }
         void terminalIn(int c) {
             terminal_in.emplace(c);
@@ -177,19 +187,12 @@ public:
         void checkInterupts() {
 
 
-            if ( haveInterrupt() ) {				// INTERRUPT
-                m[0]=r.pc&07777;
-                r.pc=1;
-                _interrupt_enable = _interrupt_enable_delay = false;
-                r.svr=(r.ifr>>9)+(r.dfr>>12);
-               // if (uflag==3) svr|=0100;
+        //    if (_interruptSystem->interruptPending()) {                        /* interrupt? */
 
-                r.dfr=r.ifr=0;
-             //   dfr=ifr=dfl=ifl=uflag=0;
-            } else {
-               if(_skip) { r.ma = (r.pc+ 1) & 0xFFF; _skip = false; } else  r.ma = r.pc;
-            }
-             if(_interrupt_enable_delay) _interrupt_enable = true;
+         //   } else {
+         //      if(_skip) { r.ma = (r.pc+ 1) & 0xFFF; _skip = false; } else  r.ma = r.pc;
+         //   }
+           //  if(_interrupt_enable_delay) _interrupt_enable = true;
           }
 
         void iot() {
@@ -197,37 +200,58 @@ public:
            // int opcode = r.mb & 0x7;
            // if(_iots[devcode] != nullptr) _iots[devcode]->iot();
             if(devcode==0) {
-                switch( r.mb&0777 ) {
-                    case 000:
-                        if(_interrupt_enable) _skip = true;
+                switch(r.mb&07){
+                case 0:                                     /* SKON */
+                    if(_int_ion) setSkip();
+                    _int_ion = false;
                       break;
-                    case 001:
-                        _interrupt_enable_delay=true;
+
+                    case 1:                                     /* ION */
+                     _int_ion = true;
+                    _no_ion_pending = false;
                       break;
-                    case 002:
-                        _interrupt_enable=_interrupt_enable_delay=false;
+
+                    case 2:                                     /* IOF */
+                       _int_ion = false;
                       break;
-                    case 003:
-                        if ( _intrupet_request )  _interrupt_enable_delay=true;
+
+                    case 3:                                     /* SRQ */
+                    if(_int_req !=0) setSkip();
                       break;
-                    case 004:
-                        r.lac=( r.lac&010000 )>>1;
-                        if ( _interrupt_enable ) r.lac|=0200;
-                        if ( _intrupet_request ) r.lac|=01000;
+
+                    case 4:                                     /* GTF */
+                    r.lac = (r.lac & 010000) | ((r.lac & 010000) >> 1) | (r.gtf << 10) | r.sf;
+                    if(_int_req !=0) r.lac |= (1<<9);
+                    if(_int_ion) r.lac |= (1<<7);
                       break;
-                    case 005:
-                        _intrupet_request =(r.lac&0200) !=0;
-                        if ( r.lac&04000 ) r.lac|=010000;
-                        _interrupt_enable_delay=false;
-                    break;
-                    case 0007: // caf this is NOT in pdp8i, but only way I can get
-                        r.lac = 0;
-                        _interrupt_enable=_interrupt_enable_delay=false;
-                        for(int i=0;i<64;i++ )
-                            if(_iots[i])
-                                _iots[i]->clear();
+
+                    case 5:                                     /* RTF */
+                      r.gtf = ((r.lac & 02000) >> 10);
+                      r.UB = (r.lac & 0100) >> 6;
+                      r.IB = (r.lac & 0070) << 9;
+                      r.DF = (r.lac & 0007) << 12;
+                      r.lac = ((r.lac & 04000) << 1) | r.iot_data; // this is intresting, only in the pdp8e?
+                      _int_ion = true;
+                      _no_cif_pending = false;
+                      break;
+
+                    case 6:                                     /* SGT */
+                      if (r.gtf)  setSkip();
+                      break;
+
+                    case 7:                                     /* CAF */
+                      r.gtf = 0;
+                      r.emode = 0;
+                      _int_req = 0;
+                      _int_ion = _no_ion_pending = false;
+                      _dev_done = 0;
+                      _int_enable = _int_has_enable;
+                      r.lac = 0;
+                      for(int i=0;i<64;i++)
+                          if(_iots[i]) _iots[i]->clear();/* reset all dev */
                       break;
                 }
+
             } else {
                 if(_iots[devcode]) _iots[devcode]->iot();
             }
@@ -246,13 +270,17 @@ public:
         }
 
         int stupid_step() {
-                if(haveInterrupt()) {
-                    m[0]=r.pc&07777;
-                    r.pc = 1;
-                    r.svr=(r.ifr>>9)+(r.dfr>>12);
-                    _interrupt_enable=_interrupt_enable_delay=false;
-                }
-                 _interrupt_enable=_interrupt_enable_delay;
+            if(interruptPending()) {
+                _int_ion = false;                                   /* interrupts off */
+                r.sf = (r.UF << 6) | (r.IF >> 9) | (r.DF >> 12);    /* form save field */
+                r.UF = r.IB = r.DF = r.UF = r.UB = 0;               /* clear mem ext */
+                hst.push(r);
+                m[0] = r.pc;
+                r.pc = 1;
+            }
+            _no_ion_pending = true;
+
+              //   _interrupt_enable=_interrupt_enable_delay;
                     hst.push(r);
               r.mb=m[r.pc];
               r.ma=( ( r.mb&0177 )+( r.mb&0200?( r.pc&07600 ):0 ) );
@@ -276,9 +304,11 @@ public:
               case 04000:
                   m[r.ma]=r.pc&07777;
                   r.pc=( r.ma+1 )&07777;
+                  _no_cif_pending = true;
                break;
               case 05000:
                   r.pc=( r.ma&07777 );
+                    _no_cif_pending = true;
                break;
               case 06000:
 
@@ -300,7 +330,6 @@ public:
                      r.lac=group1( r.lac, r.mb );
                      break;
               }
-            //  if ( r.mb!=06001 ) _interrupt_enable=_interrupt_enable_delay;
               if(_skip) { r.pc = (r.pc+ 1) & 0xFFF; _skip = false; }// else  r.ma = r.pc;
               return 0;
         }
@@ -356,7 +385,6 @@ public:
                 }
                 r.lac=group1( r.lac, r.mb );
                 break;
-                if ( r.mb!=06001 ) _interrupt_enable_delay = true;// intf=1;//inth;
                  break;
              }
         }

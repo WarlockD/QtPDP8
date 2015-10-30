@@ -34,11 +34,13 @@ private slots:
 
        void on_pushButton_9_clicked();
 
+       void on_pushButton_11_clicked();
+
 private:
     Ui::MainWindow *ui;
     QTimer *timer;
     PDP8::ThreadedCPU cpu;
-    PDP8::SimpleTTY* tty;
+    std::shared_ptr<PDP8::SimpleTTY> tty;
 };
 
 #endif // MAINWINDOW_H
