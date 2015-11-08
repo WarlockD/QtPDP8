@@ -3,6 +3,7 @@
 
 #include "includes.h"
 #include "pdp8interrupts.h"
+#include <array>
 
 namespace PDP8 {
 enum class State {
@@ -13,10 +14,11 @@ enum class State {
     Opr
 };
 struct Regesters {
+    State state;
     int32_t pc;
     int32_t ea;
     int16_t ir;
-    int16_t opnd;
+    int16_t opcode;
     int16_t lac;
     int16_t mq;
     int16_t lfr;
@@ -39,80 +41,43 @@ struct Regesters {
 class RegesterHistory {
     static const size_t HIST_COUNT = 64;
     static const size_t HIST_MASK = (HIST_COUNT-1);
-    Regesters hst[HIST_COUNT];
-    size_t _pos;
+
+    std::array<Regesters,HIST_COUNT> hst;//[HIST_COUNT];
+    size_t _head;
+    size_t _tail;
     size_t _count;
 public:
-    RegesterHistory() : _pos(0), _count(0) {}
-    inline int32_t count() const { return _count; }
-    inline void clear()  { _pos = _count = 0; }
-    void push(const Regesters& r);
-    inline const Regesters& operator[](int i) const { return hst[(_pos-i) & HIST_MASK]; }
-    const Regesters* begin() const { return &hst[_pos-1& HIST_MASK]; }
-    const Regesters* end() const { return &hst[_pos-1+_count& HIST_MASK]; }
+    RegesterHistory() : _tail(0), _head(0) ,_count(0) {
+      std::memset(&hst,0,sizeof(Regesters)*64);
+    }
+    void push(const Regesters& r) {
+        if(_count == HIST_COUNT){
+            _tail = _head;
+        }
+        hst[_head] = r;
+        _head = (_head + 1) % HIST_COUNT;
+        _count = std::max(_count+1,HIST_COUNT);
+    }
+    size_t count() const { return _count; }
+    size_t begin() const { return _head-1; }
+    size_t end() const { return _tail; }
+    const Regesters& operator[](size_t i) const { return hst[i% HIST_COUNT]; }
+
+    std::string printDisam(size_t count) const;
 };
+
+// this class is a serial interface to an internal of a device
+// This is a byte interface that only lets you transver one byte at a time
+// Its atomic though
+// No need for atomics, but just to be safe, watch the order of setting the
+// flags
+
 
 typedef std::vector<uint16_t> MainMemory;
 
 class CpuState;
 
-// Originaly I was going to do a queued single threaded process but
-// to be honest, it was going to be MORE effort than to use the
-// standard C++11 stuff.  So the Device class has a built in
-// timer thread.  You can set it to run the task() function on each
-// time interval or set it to just run constantly
-class SimpleTimer
-{
-    typedef std::chrono::high_resolution_clock clock_t; // change if we don't support this
-    std::chrono::milliseconds _interval;
-    std::atomic<bool> _run; // do I really need to do ths?
-    std::atomic<bool> _running; // do I really need to do ths?
-    std::unique_ptr<std::thread> _thread;
-    std::function<void()> _func;
-    void _threadLoop() {
-        _running = _run = true;
-        assert(_run.is_lock_free());
-        while(_run) {
-            auto start = clock_t::now();
-            if(_func) _func();
-            auto end = clock_t::now();
-             auto mdiff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-             auto ydiff = std::chrono::duration_cast<std::chrono::milliseconds>(_interval-mdiff);
-             if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
-             else throw new std::runtime_error("Task too long");
-        }
-        _running = false;
-    }
 
-public:
-    SimpleTimer() {}
-    ~SimpleTimer() {
-        if(_run) {
-            _run = false;
-            while(_running);
-        }
-    }
-
-    void setInterval(size_t after) { _interval = std::chrono::milliseconds(after); }
-    void setFunction(std::function<void()> func) { _func = func; }
-    void start() {
-        if(_run || _running) return;
-        if(!_func) return;
-        if(_interval == std::chrono::milliseconds::zero()) return;
-        if(_thread) return;
-        _thread.reset(new std::thread(&SimpleTimer::_threadLoop,this));
-        _thread->detach();
-    }
-    void stop() {
-        if(!_run || !_running) return;
-        if(!_thread) return;
-        _run = false;
-        _thread->join();
-        _thread.release();
-    }
-
-
-};
 
 
 class Device {
@@ -146,7 +111,6 @@ protected:
     Regesters r;
     MainMemory m;
     uint32_t _sw;
-    State _state;
 
     bool _run;      // the state of the engine
     bool _running; // on if the thread is running
@@ -195,7 +159,7 @@ public: // getters and setters
     inline bool singleStep() const { return _singleStep; }
     inline bool skip() const { return _skip; }
     inline void setSkip() { _skip = true; }
-    inline State state() const { return _state; }
+    inline State state() const { return r.state; }
 public:
     inline void enableInterrupts() { _int_ion = true; }
     inline  void disabbleInterrupts() { _int_ion = false; }
@@ -218,6 +182,7 @@ public:
     inline bool isInterruptEnabled(char dev) const { return ((_int_has_enable & ((uint64_t)1<<dev)) & _int_enable) != 0; }
     inline void setInterruptRequest(char dev) { _int_req |= ((uint64_t)1<<dev);  }
     inline void clearInterruptRequest(char dev) { _int_req &= ~((uint64_t)1<<dev);  }
+    inline void interruptRequest(char dev, bool state) { if(state) _int_req |= ((uint64_t)1<<dev); else _int_req &= ~((uint64_t)1<<dev); }
     inline bool hasInterrupt(char dev) const { return ((_int_enable & ((uint64_t)1<<dev)) & _int_req) != 0;  }
     inline bool isDone(char dev) const { return _dev_done & ((uint64_t)1<<dev); }
     inline void setDone(char dev)  { _dev_done |= ((uint64_t)1<<dev);  }

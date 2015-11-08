@@ -51,16 +51,27 @@ void Console::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Up:
     case Qt::Key_Down:
         break;
+    case Qt::Key_Return:
+        emit getData(0215);
+        break;
     default:
         if (localEchoEnabled)
             QPlainTextEdit::keyPressEvent(e);
+        QString text = e->text(); // too expensive to keep making a string for EACH char
+        if(text.count() >0) {
+            Q_ASSERT(text.count() == 1);
+            QChar c = text[0];
+            if(c.isPrint()) { emit getData(text[0].toLatin1()); }
+        }
+        break;
+
+
 
     }
-    QString text = e->text(); // too expensive to keep making a string for EACH char
-    Q_ASSERT(text.count() == 1);
 
 
-    emit getData(text[0].toLatin1());
+
+
 }
 
 void Console::mousePressEvent(QMouseEvent *e)

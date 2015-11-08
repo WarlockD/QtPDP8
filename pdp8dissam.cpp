@@ -1,10 +1,12 @@
 #include "pdp8dissam.h"
-
+#include "pdp8_utilities.h"
 #include <cstdint>
 #include <iostream>
-#include <hash_map>
+#include <unordered_map>
 #include <string>
 #include <vector>
+#include <sstream>
+
 namespace PDP8 {
 
 struct one_iot_t
@@ -388,14 +390,10 @@ static inline int ea (size_t addr, int16_t opcode, bool& indirect, bool& curpage
     curpage = (opcode & 00200) != 0;
     return curpage ? (addr & 07600) + (opcode & 00177) : opcode & 00177;
 }
-std::string to_octal(int num,const char* fmt="%04o") {
-    char buff[8];
-    sprintf(buff,fmt,num);
-    return buff;
-}
-static bool fetch_iot (int code, std::string* dis, std::string* com)
+
+static bool fetch_iot (int code, std::stringstream* dis, std::stringstream* com)
 {
-    static std::hash_map<int,const one_iot_t*> hash_lookup;
+    static std::unordered_map<int,const one_iot_t*> hash_lookup;
     struct _make_hashmap{
 
         _make_hashmap() {
@@ -409,219 +407,225 @@ static bool fetch_iot (int code, std::string* dis, std::string* com)
     auto i = hash_lookup.find(code);
     if(i != hash_lookup.cend()) {
         const one_iot_t* iot = i->second;
-        if (dis) *dis += iot->mnemonic;
-        if (com) *com += iot->comment;
+        if (dis) *dis << iot->mnemonic;
+        if (com) *com << iot->comment;
         return true;
     }
-    if (dis) *dis += to_octal(code);
-    if (com) *com += "unknown IOT";
+    if (dis) *dis << to_octal(code);
+    if (com) *com << "unknown IOT";
     return false;
 }
-        void simple_dsam8(uint16_t buf, uint16_t pc, const uint16_t* mem,  std::string& disbuf, std::string&combuf) {
-            bool		ind, cur;
+std::string dsam8(uint16_t op, uint16_t pc, const uint16_t* mem, bool comment) {
+    std::stringstream disbuf;
+    std::stringstream combuf;
+    int two_word = 0;
+    int	ea =   isCurrent(op) ? (pc & 07600) + (op & 00177) : op & 00177;
+    disbuf << to_octal(pc) << " " << to_octal(op) << " : ";
+    switch (op & 07000) {
+       case	00000:			// AND
+       case	01000:			// TAD
+       case	02000:			// ISZ
+       case	03000:			// DCA
+       case	04000:			// JMS
+       case	05000:			// JMP
+           disbuf << codes [op >> 9];
+           if ((ea & 07770) == 00010) {	// addresses 0010 -> 0017
+               disbuf << " AI ";
+               combuf << "AUTO INDEX REGISTER";
+           } else if(isIndirect(op)) {
+               disbuf << " I  ";
+           } else {
+               disbuf << "    ";
+           }
+           // comment indirect flow control change to reflect ultimate target
+           switch (op & 07400) {
+           case	04400:
+               combuf << "long call to S";
+               combuf << to_octal(mem[ea]);
+               break;
+           case	05400:
+               combuf << "long jump to L";
+               combuf << to_octal(mem[ea]);
+               break;
+           }
 
-           int two_word=0;
-                int	eff_addr = ea (pc, buf, ind, cur);
-           switch (buf & 07000) {
-               case	00000:			// AND
-               case	01000:			// TAD
-               case	02000:			// ISZ
-               case	03000:			// DCA
-               case	04000:			// JMS
-               case	05000:			// JMP
-               disbuf += codes [buf >> 9];
-               disbuf += ind ? "I " : " ";
-               if ((eff_addr & 07770) == 00010) {	// addresses 0010 -> 0017
-                   disbuf += "AI";
-                   combuf+= "AUTO INDEX REGISTER";
-               }
+
+           if ((ea & 07770) == 00010) {		// address 0010 -> 0017
+               disbuf << to_octal(ea & 7,"%o ");
+           } else {
+               disbuf << to_octal( mem [ea] ,"%4o ");
+           }
+        break;
 
 
-                       // comment indirect flow control change to reflect ultimate target
-                       switch (buf & 07400) {
-                       case	04400:
-                           combuf += "long call to S";
-                           combuf += to_octal(mem[eff_addr]);
-                           break;
-                       case	05400:
-                           combuf += "long jump to L";
-                           combuf += to_octal(mem[eff_addr]);
-                           break;
-                       }
+       case	06000:			// IOT
+           fetch_iot (op, &disbuf, &combuf);
+           disbuf << "    ";
+           break;
 
+       case	07000:			// OPR
+                  // perform "short form" OPRs here first...
+                  switch (op) {
+                      case 07000: disbuf << "NOP"; break;
+                      case 07002: disbuf << "BSW"; break;
+                      case 07041: disbuf << "CIA"; break;
+                      case 07120: disbuf << "STL"; break;
+                      case 07204: disbuf << "GLK"; break;
+                      case 07240: disbuf << "STA"; combuf << "AC = 7777 (-0001)"; break;
+                      case 07300: disbuf << "CLA CLL"; combuf << "AC = 0000"; break;
+                      case 07301: disbuf << "CLA CLL IAC"; combuf << "AC = 0001"; break;
+                      case 07302: disbuf << "CLA IAC BSW"; combuf << "AC = 0100 (64)"; break;
+                      case 07305: disbuf << "CLA CLL IAC RAL"; combuf << "AC = 0002"; break;
+                      case 07325: disbuf << "CLA CLL CML IAC RAL"; combuf << "AC = 0003"; break;
+                      case 07326: disbuf << "CLA CLL CML RTL"; combuf << "AC = 0002"; break;
+                      case 07307: disbuf << "CLA CLL IAC RTL"; combuf << "AC = 0004"; break;
+                      case 07327: disbuf << "CLA CLL CML IAC RTL"; combuf << "AC = 0006"; break;
+                      case 07330: disbuf << "CLA CLL CML RAR"; combuf << "AC = 4000 (-4000 = -2048 dec)"; break;
+                      case 07332: disbuf << "CLA CLL CML RTR"; combuf << "AC = 2000 (1024)"; break;
+                      case 07333: disbuf << "CLA CLL CML IAC RTL"; combuf << "AC = 6000 (-2000 = -1024 dec)"; break;
+                      case 07340: disbuf << "CLA CLL CMA"; combuf << "AC = 7777 (-0001)"; break;
+                      case 07344: disbuf << "CLA CLL CMA RAL"; combuf << "AC = 7776 (-0002)"; break;
+                      case 07346: disbuf << "CLA CLL CMA RTL"; combuf << "AC = 7775 (-0003)"; break;
+                      case 07350: disbuf << "CLA CLL CMA RAR"; combuf << "AC = 3777 (2047)"; break;
+                      case 07352: disbuf << "CLA CLL CMA RTR"; combuf << "AC = 5777 (-2001 = -1025 dec)"; break;
+                      case 07401: disbuf << "NOP"; break;
+                      case 07410: disbuf << "SKP"; break;
+                      case 07600: disbuf << "7600"; combuf << "AKA \"CLA\""; break;
+                      case 07610: disbuf << "SKP CLA"; break;
+                      case 07604: disbuf << "LAS"; break;
+                      case 07621: disbuf << "CAM"; break;
+                      default:
 
-                   if ((eff_addr & 07770) == 00010) {		// address 0010 -> 0017
-                       disbuf += to_octal(eff_addr & 7,"%o ");
-                   } else {
-                       disbuf += to_octal( mem [eff_addr] ,"%04o ");
-                   }
+                          // determine group (0401 is 0000/0001 for group 1, 0400 for group 2, 0401 for EAE)
+                          switch (op & 00401) {
+                              case 00000:	// group 1
+                              case 00001:	// group 1
+                                  // sequence 1
+                                  if (op & 00200) {
+                                      disbuf << "CLA ";
+                                  }
+                                  if (op & 00100) {
+                                      disbuf << "CLL ";
+                                  }
+                                  // sequence 2
+                                  if (op & 00040) {
+                                      disbuf << "CMA ";
+                                  }
+                                  if (op & 00020) {
+                                      disbuf << "CML ";
+                                  }
+                                  // sequence 3
+                                  if (op & 00001) {
+                                      disbuf << "IAC ";
+                                  }
+                                  // sequence 4
+                                  if (op & 00010) {
+                                      if (op & 00002) {
+                                          disbuf << "RTR ";
+                                      } else {
+                                          disbuf << "RAR ";
+                                      }
+                                  }
+                                  if (op & 00004) {
+                                      if (op & 00002) {
+                                          disbuf << "RTL ";
+                                      } else {
+                                          disbuf << "RAL ";
+                                      }
+                                  }
+                                  break;
 
-                   break;
-
-               case	06000:			// IOT
-                   fetch_iot (buf, &disbuf, &combuf);
-                   break;
-
-               case	07000:			// OPR
-                          // perform "short form" OPRs here first...
-                          switch (buf) {
-                              case 07000: disbuf += "NOP"; break;
-                              case 07002: disbuf += "BSW"; break;
-                              case 07041: disbuf += "CIA"; break;
-                              case 07120: disbuf += "STL"; break;
-                              case 07204: disbuf += "GLK"; break;
-                              case 07240: disbuf += "STA"; combuf += "AC = 7777 (-0001)"; break;
-                              case 07300: disbuf += "CLA CLL"; combuf += "AC = 0000"; break;
-                              case 07301: disbuf += "CLA CLL IAC"; combuf += "AC = 0001"; break;
-                              case 07302: disbuf += "CLA IAC BSW"; combuf += "AC = 0100 (64)"; break;
-                              case 07305: disbuf += "CLA CLL IAC RAL"; combuf += "AC = 0002"; break;
-                              case 07325: disbuf += "CLA CLL CML IAC RAL"; combuf += "AC = 0003"; break;
-                              case 07326: disbuf += "CLA CLL CML RTL"; combuf += "AC = 0002"; break;
-                              case 07307: disbuf += "CLA CLL IAC RTL"; combuf += "AC = 0004"; break;
-                              case 07327: disbuf += "CLA CLL CML IAC RTL"; combuf += "AC = 0006"; break;
-                              case 07330: disbuf += "CLA CLL CML RAR"; combuf += "AC = 4000 (-4000 = -2048 dec)"; break;
-                              case 07332: disbuf += "CLA CLL CML RTR"; combuf += "AC = 2000 (1024)"; break;
-                              case 07333: disbuf += "CLA CLL CML IAC RTL"; combuf += "AC = 6000 (-2000 = -1024 dec)"; break;
-                              case 07340: disbuf += "CLA CLL CMA"; combuf += "AC = 7777 (-0001)"; break;
-                              case 07344: disbuf += "CLA CLL CMA RAL"; combuf += "AC = 7776 (-0002)"; break;
-                              case 07346: disbuf += "CLA CLL CMA RTL"; combuf += "AC = 7775 (-0003)"; break;
-                              case 07350: disbuf += "CLA CLL CMA RAR"; combuf += "AC = 3777 (2047)"; break;
-                              case 07352: disbuf += "CLA CLL CMA RTR"; combuf += "AC = 5777 (-2001 = -1025 dec)"; break;
-                              case 07401: disbuf += "NOP"; break;
-                              case 07410: disbuf += "SKP"; break;
-                              case 07600: disbuf += "7600"; combuf += "AKA \"CLA\""; break;
-                              case 07610: disbuf += "SKP CLA"; break;
-                              case 07604: disbuf += "LAS"; break;
-                              case 07621: disbuf += "CAM"; break;
-                              default:
-
-                                  // determine group (0401 is 0000/0001 for group 1, 0400 for group 2, 0401 for EAE)
-                                  switch (buf & 00401) {
-                                      case 00000:	// group 1
-                                      case 00001:	// group 1
-                                          // sequence 1
-                                          if (buf & 00200) {
-                                              disbuf += "CLA ";
-                                          }
-                                          if (buf & 00100) {
-                                              disbuf += "CLL ";
-                                          }
-                                          // sequence 2
-                                          if (buf & 00040) {
-                                              disbuf += "CMA ";
-                                          }
-                                          if (buf & 00020) {
-                                              disbuf += "CML ";
-                                          }
-                                          // sequence 3
-                                          if (buf & 00001) {
-                                              disbuf += "IAC ";
-                                          }
-                                          // sequence 4
-                                          if (buf & 00010) {
-                                              if (buf & 00002) {
-                                                  disbuf += "RTR ";
-                                              } else {
-                                                  disbuf += "RAR ";
-                                              }
-                                          }
-                                          if (buf & 00004) {
-                                              if (buf & 00002) {
-                                                  disbuf += "RTL ";
-                                              } else {
-                                                  disbuf += "RAL ";
-                                              }
-                                          }
+                              case 00400:	// group 2
+                                  // sequence 1
+                                  if (op & 00100) {
+                                      if (op & 00010) {
+                                          disbuf << "SPA ";
+                                      } else {
+                                          disbuf << "SMA ";
+                                      }
+                                  }
+                                  if (op & 00040) {
+                                      if (op & 00010) {
+                                          disbuf << "SNA ";
+                                      } else {
+                                          disbuf << "SZA ";
+                                      }
+                                  }
+                                  if (op & 00020) {
+                                      if (op & 00010) {
+                                          disbuf << "SZL ";
+                                      } else {
+                                          disbuf << "SNL ";
+                                      }
+                                  }
+                                  // sequence 2
+                                  if (op & 00200) {
+                                      disbuf << "CLA ";
+                                  }
+                                  // sequence 3
+                                  if (op & 00004) {
+                                      disbuf << "OSR ";
+                                  }
+                                  if (op & 00002) {
+                                      disbuf << "HLT ";
+                                  }
+                                  break;
+                              case 00401:	// EAE
+                                  // sequence 1
+                                  if (op & 00200) {
+                                      disbuf << "CLA ";
+                                  }
+                                  // sequence 2
+                                  if (op & 00100) {
+                                      disbuf << "MQA ";
+                                  }
+                                  if (op & 00040) {
+                                      disbuf << "SCA ";
+                                  }
+                                  if (op & 00020) {
+                                      disbuf << "MQL ";
+                                  }
+                                  // sequence 3
+                                  switch (op & 00016) {
+                                      case 0:		// no further ops, done
                                           break;
-
-                                      case 00400:	// group 2
-                                          // sequence 1
-                                          if (buf & 00100) {
-                                              if (buf & 00010) {
-                                                  disbuf += "SPA ";
-                                              } else {
-                                                  disbuf += "SMA ";
-                                              }
-                                          }
-                                          if (buf & 00040) {
-                                              if (buf & 00010) {
-                                                  disbuf += "SNA ";
-                                              } else {
-                                                  disbuf += "SZA ";
-                                              }
-                                          }
-                                          if (buf & 00020) {
-                                              if (buf & 00010) {
-                                                  disbuf += "SZL ";
-                                              } else {
-                                                  disbuf += "SNL ";
-                                              }
-                                          }
-                                          // sequence 2
-                                          if (buf & 00200) {
-                                              disbuf += "CLA ";
-                                          }
-                                          // sequence 3
-                                          if (buf & 00004) {
-                                              disbuf += "OSR ";
-                                          }
-                                          if (buf & 00002) {
-                                              disbuf += "HLT ";
-                                          }
+                                      case 002:
+                                          disbuf << "SCL ";
+                                          two_word = op;
                                           break;
-                                      case 00401:	// EAE
-                                          // sequence 1
-                                          if (buf & 00200) {
-                                              disbuf += "CLA ";
-                                          }
-                                          // sequence 2
-                                          if (buf & 00100) {
-                                              disbuf += "MQA ";
-                                          }
-                                          if (buf & 00040) {
-                                              disbuf += "SCA ";
-                                          }
-                                          if (buf & 00020) {
-                                              disbuf += "MQL ";
-                                          }
-                                          // sequence 3
-                                          switch (buf & 00016) {
-                                              case 0:		// no further ops, done
-                                                  break;
-                                              case 002:
-                                                  disbuf += "SCL ";
-                                                  two_word = buf;
-                                                  break;
-                                              case 004:
-                                                  disbuf += "MUY ";
-                                                  two_word = buf;
-                                                  break;
-                                              case 006:
-                                                  disbuf += "DVI ";
-                                                  two_word = buf;
-                                                  break;
-                                              case 010:
-                                                  disbuf += "NMI";
-                                                  break;
-                                              case 012:
-                                                  disbuf += "SHL ";
-                                                  two_word = buf;
-                                                  break;
-                                              case 014:
-                                                  disbuf += "ASR ";
-                                                  two_word = buf;
-                                                  break;
-                                              case 016:
-                                                  disbuf += "LSR ";
-                                                  two_word = buf;
-                                                  break;
-                                          }
+                                      case 004:
+                                          disbuf << "MUY ";
+                                          two_word = op;
+                                          break;
+                                      case 006:
+                                          disbuf << "DVI ";
+                                          two_word = op;
+                                          break;
+                                      case 010:
+                                          disbuf << "NMI";
+                                          break;
+                                      case 012:
+                                          disbuf << "SHL ";
+                                          two_word = op;
+                                          break;
+                                      case 014:
+                                          disbuf << "ASR ";
+                                          two_word = op;
+                                          break;
+                                      case 016:
+                                          disbuf << "LSR ";
+                                          two_word = op;
                                           break;
                                   }
                                   break;
                           }
                           break;
                   }
+                  disbuf << "    ";
+                  break;
+          }
+    if(comment) disbuf << " / " << combuf.str();
+    return disbuf.str();
  }
 
 }

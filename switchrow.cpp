@@ -1,6 +1,7 @@
 #include "switchrow.h"
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QLabel>
 #include "octalvalidator.h"
 
 SwitchRow::SwitchRow(QWidget *parent) : QWidget(parent)
@@ -15,14 +16,25 @@ SwitchRow::SwitchRow(QWidget *parent) : QWidget(parent)
         bool ok;
         setSr(lineEdit->text().toInt(&ok,8));
     });
-    for(int i=11;i>=0;i--) { // add in reverse order
+    int count = 0;
+    for(int i=11;i>=0;i--,count++) { // add in reverse order
+        QVBoxLayout *with_label = new QVBoxLayout;
+
+        QLabel* switch_label = new QLabel;
+        switch_label->setText(QString::number(count)); // label text has to be in reverse
+        switch_label->setAlignment(Qt::AlignVCenter | Qt::AlignHCenter);
+        with_label->addWidget(switch_label);
+
         PanelSwitch* s = new PanelSwitch;
         switch(i) {
             case 0: case 1: case 2: case 6: case 7: case 8: s->setColor(Qt::white); break;
         }
-        s->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        s->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         s->setTag(i);
-        layout->addWidget(s);
+        with_label->addWidget(s);
+
+
+        layout->addLayout(with_label);
         connect(s,&PanelSwitch::switchPressed,this,&SwitchRow::switchPressed);
         sr[i] = s;
     }

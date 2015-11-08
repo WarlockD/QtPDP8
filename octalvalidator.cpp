@@ -13,7 +13,10 @@ OctalValidator::OctalValidator(QObject *parent) : QValidator(parent)
          return State::Acceptable;
      }
 
-     const QChar c = input.at(pos-1);
-     if(c.isDigit() && c != d8 && c!= d9) return State::Acceptable;
-     else return State::Invalid;
+
+     for(int i=0;i<input.size();i++) {
+         const QChar c = input.at(i);
+         if(!c.isDigit() || c == d8 || c== d9) return State::Invalid;
+     }
+     return State::Acceptable;
  }

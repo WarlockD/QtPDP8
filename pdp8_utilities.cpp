@@ -4,8 +4,8 @@
 #define MEMSIZE 32768
 #include <algorithm>
 #include <string>
-#include <hash_map>
-
+#include <unordered_map>
+#include <iomanip>
 // Select one of the following:
 #define	VC8I
 //#define	KV8I
@@ -49,8 +49,15 @@ struct segment_t
 }	;
 static const char *codes[] = {"AND", "TAD", "ISZ", "DCA", "JMS", "JMP"};	// IOT and OPR are decoded elsewhere
 namespace PDP8 {
-
-
+std::ostream& operator<< (std::ostream& s, const octzero& o) {
+    s << std::setfill('0') << std::setw(4) << std::oct << o._num;
+    return s;
+}
+std::string to_octal(int num,const char* fmt) {
+    char buff[8];
+    sprintf(buff,fmt,num);
+    return buff;
+}
 void LoadRim(std::istream& i ,CpuState& s, size_t origin){
     size_t hi=0, lo=0, wd=0;
     do {                                                    /* skip leader */

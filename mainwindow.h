@@ -5,7 +5,7 @@
 #include <QTimer>
 
 #include "pdp8i.h"
-
+#include "tty_vt52.h"
 namespace Ui {
 class MainWindow;
 }
@@ -36,11 +36,19 @@ private slots:
 
        void on_pushButton_11_clicked();
 
+       void on_pushButton_4_clicked();
+
+       void on_pushButton_10_clicked();
+
+       void on_pushButton_12_clicked();
+
+       void on_pushButton_13_clicked();
+
 private:
     Ui::MainWindow *ui;
     QTimer *timer;
     PDP8::ThreadedCPU cpu;
-    std::shared_ptr<PDP8::SimpleTTY> tty;
+    std::shared_ptr<PDP8::KL8C> kl8c;
 };
 
 #endif // MAINWINDOW_H
