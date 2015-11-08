@@ -658,7 +658,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="VT52Console" name="simpleConsole">
+   <widget class="Console" name="simpleConsole">
     <property name="geometry">
      <rect>
       <x>340</x>
@@ -748,6 +748,19 @@
      <string>vt05</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="pushButton_14">
+    <property name="geometry">
+     <rect>
+      <x>460</x>
+      <y>30</y>
+      <width>75</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>focal</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -781,11 +794,6 @@
    <class>Console</class>
    <extends>QPlainTextEdit</extends>
    <header>console.h</header>
-  </customwidget>
-  <customwidget>
-   <class>VT52Console</class>
-   <extends>QPlainTextEdit</extends>
-   <header location="global">vt52console.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

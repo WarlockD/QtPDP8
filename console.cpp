@@ -10,6 +10,7 @@ Console::Console(QWidget *parent)
     : QPlainTextEdit(parent)
     , localEchoEnabled(false)
 {
+    connect(this,&Console::putDataSignal,this,&Console::putDataSlot);
     document()->setMaximumBlockCount(100);
     QPalette p = palette();
     p.setColor(QPalette::Base, Qt::black);
@@ -32,11 +33,16 @@ void Console::putData(const QString& s) {
     bar->setValue(bar->maximum());
 }
  void Console::putData(const QChar c) {
+     emit putDataSignal(c); // Have to do this cross threads
+    // insertPlainText(QString(c));
+   //  QScrollBar *bar = verticalScrollBar();
+   //  bar->setValue(bar->maximum());
+ }
+ void Console::putDataSlot(const QChar c) {
      insertPlainText(QString(c));
      QScrollBar *bar = verticalScrollBar();
      bar->setValue(bar->maximum());
  }
-
 void Console::setLocalEchoEnabled(bool set)
 {
     localEchoEnabled = set;

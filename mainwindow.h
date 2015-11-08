@@ -1,15 +1,37 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
-#include <QTimer>
-
 #include "pdp8i.h"
 #include "tty_vt52.h"
+#include <QMainWindow>
+#include <QTimer>
+#include <QQueue>
+#include "console.h"
+
 namespace Ui {
 class MainWindow;
 }
+class TempInterface : public PDP8::SerialInterface {
+    QQueue<QChar> _outData;
+    Console* _console;
+public:
+    TempInterface() {}
+    void setConsole(Console* c) { _console =c; }
+    virtual bool haveData() const {
+        return !_outData.empty();
+    }
+    virtual int received() {
+        return haveData() ? _outData.dequeue().toLatin1() : -1;
+    }
 
+    virtual void trasmit(unsigned char data) {
+       if(_console) _console->putData(QChar::fromLatin1(data));
+    }
+    void keyboardkey(const QChar& data) {
+        _outData.enqueue(data);
+    }
+
+};
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -44,11 +66,14 @@ private slots:
 
        void on_pushButton_13_clicked();
 
+       void on_pushButton_14_clicked();
+
 private:
     Ui::MainWindow *ui;
     QTimer *timer;
     PDP8::ThreadedCPU cpu;
     std::shared_ptr<PDP8::KL8C> kl8c;
+    std::shared_ptr<TempInterface> sinterface;
 };
 
 #endif // MAINWINDOW_H

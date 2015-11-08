@@ -27,8 +27,7 @@ SOURCES += main.cpp\
     pdp8state.cpp \
     timer.cpp \
     pdp8interrupts.cpp \
-    tty_vt52.cpp \
-    vt52console.cpp
+    tty_vt52.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -45,8 +44,7 @@ HEADERS  += mainwindow.h \
     timer.h \
     pdp8interrupts.h \
     includes.h \
-    tty_vt52.h \
-    vt52console.h
+    tty_vt52.h
 
 FORMS    += mainwindow.ui
 include(panelswitch.pri)

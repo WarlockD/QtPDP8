@@ -9,7 +9,7 @@ class Console : public QPlainTextEdit
 
 signals:
     void getData(const QChar data);
-
+    void putDataSignal(const QChar data);
 public:
     explicit Console(QWidget *parent = 0);
 
@@ -19,7 +19,7 @@ public:
     void setLocalEchoEnabled(bool set);
 
 public slots:
-
+    void putDataSlot(const QChar c);
 protected:
     virtual void keyPressEvent(QKeyEvent *e);
     virtual void mousePressEvent(QMouseEvent *e);

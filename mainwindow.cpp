@@ -2,6 +2,12 @@
 #include "ui_mainwindow.h"
 #include "pdp8_utilities.h"
 #include <QDebug>
+#include <QQueue>
+
+
+
+
+
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -11,7 +17,7 @@ MainWindow::MainWindow(QWidget *parent) :
     timer = new QTimer(this);
     connect(timer,&QTimer::timeout,this,&MainWindow::on_timer);
        timer->start(1000/15); // update 30 times a sec
-    //   connect(ui->simpleConsole,&Console::getData,this,&MainWindow::onData);
+       connect(ui->simpleConsole,&Console::getData,this,&MainWindow::onData);
     cpu.power();
   //  pdp8Cpu.OpenDevices(nullptr,nullptr,nullptr,nullptr,0);
     //pdp8Cpu.LoadBoot((unsigned short*)&pdp8State.mem,false);
@@ -24,10 +30,12 @@ MainWindow::MainWindow(QWidget *parent) :
      // hack for now
 
     std::shared_ptr<PDP8::KL8C> ptr = std::make_shared<PDP8::KL8C>(cpu);
+    sinterface = std::make_shared<TempInterface>();
+    sinterface->setConsole(ui->simpleConsole);
     cpu.installDev(ptr,03,true);
     cpu.installDev(ptr,04,true);
     kl8c = ptr;
-    ptr->setInterface(ui->simpleConsole);
+    ptr->setInterface(sinterface);
     ui->switchRow->setSr(07777);
     cpu.regs().ma = 0200;
     cpu.regs().pc = 0200;
@@ -46,7 +54,8 @@ void MainWindow::on_pushButton_clicked()
 }
 
   void MainWindow::onData(const QChar data) {
-      //if(kl8c) tty->trasmit(data.toLatin1());
+
+      if(sinterface) sinterface->keyboardkey(data);
   }
 
 void MainWindow::on_timer() {
@@ -66,8 +75,10 @@ void MainWindow::on_timer() {
         ui->labelState->setText(QStringLiteral("Err")); break;
     }
 /*
-    if(kl8c && kl8c->haveData() ){
-        int c = tty->received();
+    if(sinterface && sinterface->checkBuffer() ){
+        QChar c = sinterface->getBufferuffer();
+        ui->simpleConsole->putData(c);
+
         switch(c) {
         case '\a': ui->simpleConsole->putData(QString("BELL(\"%1\")").arg(c).toLatin1());
             break;
@@ -76,14 +87,16 @@ void MainWindow::on_timer() {
             const QChar ch = QChar::fromLatin1(c);
             if(ch.isPrint()) ui->simpleConsole->putData(QChar::fromLatin1(c));
             else ui->simpleConsole->putData(QString("Printable(\"%1\")").arg(c).toLatin1());
+             }
 
 
-        }
 
+}
 
-    }
-    */
+*/
+
     std::string s = cpu.printState();
+    s += kl8c->debug();
     ui->debugConsole->clear();
     ui->debugConsole->putData(QString::fromStdString(s));
     if(!last_run_state && !cpu.run()) {
@@ -199,6 +212,22 @@ void MainWindow::on_pushButton_13_clicked()
     try{
      //   PDP8::LoadBin("maindec-08-dgv5a-b-pb.bin",cpu);
         PDP8::LoadBin("dhvtc-d-pb",cpu);
+    }catch(PDP8::PDP8_Exception& e) {
+
+    }
+
+    ui->switchRow->setSr(0);
+    cpu.regs().ma = 0200;
+    cpu.regs().pc = 0200;
+    last_run_state= false;
+}
+
+void MainWindow::on_pushButton_14_clicked()
+{
+    cpu.power();
+    try{
+       PDP8::LoadBin("focal69.bin",cpu);
+      //  PDP8::LoadBin("dhvtc-d-pb",cpu);
     }catch(PDP8::PDP8_Exception& e) {
 
     }
