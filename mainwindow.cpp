@@ -17,7 +17,7 @@ MainWindow::MainWindow(QWidget *parent) :
     timer = new QTimer(this);
     connect(timer,&QTimer::timeout,this,&MainWindow::on_timer);
        timer->start(1000/15); // update 30 times a sec
-       connect(ui->simpleConsole,&Console::getData,this,&MainWindow::onData);
+       connect(ui->simpleConsole,&QTTY::keyboardSend,this,&MainWindow::onData);
     cpu.power();
   //  pdp8Cpu.OpenDevices(nullptr,nullptr,nullptr,nullptr,0);
     //pdp8Cpu.LoadBoot((unsigned short*)&pdp8State.mem,false);
@@ -53,7 +53,7 @@ void MainWindow::on_pushButton_clicked()
      cpu.panelSwitch(PDP8::PanelToggleSwitch::Start);
 }
 
-  void MainWindow::onData(const QChar data) {
+  void MainWindow::onData(int data) {
 
       if(sinterface) sinterface->keyboardkey(data);
   }

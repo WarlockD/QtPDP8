@@ -658,7 +658,7 @@
      </item>
     </layout>
    </widget>
-   <widget class="Console" name="simpleConsole">
+   <widget class="QTTY" name="simpleConsole">
     <property name="geometry">
      <rect>
       <x>340</x>
@@ -794,6 +794,11 @@
    <class>Console</class>
    <extends>QPlainTextEdit</extends>
    <header>console.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QTTY</class>
+   <extends>QPlainTextEdit</extends>
+   <header>qtty.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

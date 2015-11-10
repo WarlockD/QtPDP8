@@ -27,7 +27,9 @@ SOURCES += main.cpp\
     pdp8state.cpp \
     timer.cpp \
     pdp8interrupts.cpp \
-    tty_vt52.cpp
+    tty_vt52.cpp \
+    qtty.cpp \
+    stupidvt52widget.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -44,7 +46,15 @@ HEADERS  += mainwindow.h \
     timer.h \
     pdp8interrupts.h \
     includes.h \
-    tty_vt52.h
+    tty_vt52.h \
+    qtty.h \
+    stupidvt52widget.h
 
 FORMS    += mainwindow.ui
-include(panelswitch.pri)
+
+
+DISTFILES += \
+    TELETYPE1945-1985.ttf
+
+RESOURCES += \
+    pdp8emulator.qrc

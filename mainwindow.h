@@ -7,27 +7,28 @@
 #include <QTimer>
 #include <QQueue>
 #include "console.h"
+#include "qtty.h"
 
 namespace Ui {
 class MainWindow;
 }
 class TempInterface : public PDP8::SerialInterface {
-    QQueue<QChar> _outData;
-    Console* _console;
+    QQueue<int> _outData;
+    QTTY* _console;
 public:
     TempInterface() {}
-    void setConsole(Console* c) { _console =c; }
+    void setConsole(QTTY* c) { _console =c; }
     virtual bool haveData() const {
         return !_outData.empty();
     }
     virtual int received() {
-        return haveData() ? _outData.dequeue().toLatin1() : -1;
+        return haveData() ? _outData.dequeue() : -1;
     }
 
     virtual void trasmit(unsigned char data) {
        if(_console) _console->putData(QChar::fromLatin1(data));
     }
-    void keyboardkey(const QChar& data) {
+    void keyboardkey(int data) {
         _outData.enqueue(data);
     }
 
@@ -43,7 +44,7 @@ public:
 private slots:
     void on_pushButton_clicked();
     void on_timer();
-       void onData(const QChar data);
+       void onData(int data);
        void on_pushButton_2_clicked();
 
        void on_pushButton_7_clicked();

@@ -8,7 +8,7 @@
 
 Console::Console(QWidget *parent)
     : QPlainTextEdit(parent)
-    , localEchoEnabled(false)
+    , localEchoEnabled(false),overline(false)
 {
     connect(this,&Console::putDataSignal,this,&Console::putDataSlot);
     document()->setMaximumBlockCount(100);
@@ -39,7 +39,23 @@ void Console::putData(const QString& s) {
    //  bar->setValue(bar->maximum());
  }
  void Console::putDataSlot(const QChar c) {
-     insertPlainText(QString(c));
+     QTextCursor tc = textCursor();
+     if(c.isPrint()) {
+         tc.deleteChar();
+         tc.insertText(QString(c));
+         setTextCursor(tc);
+     }else {
+         switch(c.toLatin1()) {
+         case '\n':
+         case '\r':
+             overline = true;
+             //tc.movePosition()
+           //  int currentLine = myTextEdit->textCursor().blockNumber() + 1;
+         }
+     }
+
+
+     //insertPlainText(QString(c));
      QScrollBar *bar = verticalScrollBar();
      bar->setValue(bar->maximum());
  }

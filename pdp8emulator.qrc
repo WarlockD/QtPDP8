@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/fonts">
+        <file>TELETYPE1945-1985.ttf</file>
+        <file>veteran typewriter.ttf</file>
+    </qresource>
+</RCC>

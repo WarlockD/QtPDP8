@@ -28,7 +28,7 @@ protected:
 
 private:
     bool localEchoEnabled;
-
+    bool overline;
 };
 
 #endif // CONSOLE_H
