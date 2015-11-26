@@ -11,6 +11,11 @@
 //#include <cstdio>
 #include "pdp8state.h"
 
+// This is a simple protected setter getter macro maker
+// Its getting a bit unwhilding with all the getters/setters and thought this make it a tad
+// easyer
+#define GETSETVALUE(type,name) protected: type _##name; public: inline type name() const { return _##name; } public: inline type& name()  { return _##name; } public: inline void name(type v) { _##name = v; }
+
 
 // Originaly I was going to do a queued single threaded process but
 // to be honest, it was going to be MORE effort than to use the
@@ -24,7 +29,7 @@ class SimpleTimer
     std::atomic<bool> _run; // do I really need to do ths?
     std::atomic<bool> _running; // do I really need to do ths?
     std::function<void()> _func;
-
+    GETSETVALUE(int,test)
 public:
     SimpleTimer() {}
     ~SimpleTimer() {
@@ -110,11 +115,13 @@ std::string to_octal(int num,const char* fmt="%04o") ;
 inline bool isIndirect(uint16_t a) { return a & 0x100; }
 inline bool isCurrent(uint16_t a) { return a & 0x80; } //0200
 class octzero {
+
     int _num;
+     int _digits;
    // int _digits;
   //  bool _zero;
 public:
-    octzero(int num) : _num(num) {}
+    octzero(int num,int digits = 4) : _num(num),_digits(digits) {}
     friend std::ostream& operator<< (std::ostream& stream, const octzero& o);
 };
 std::ostream& operator<< (std::ostream& s, const octzero& o) ;

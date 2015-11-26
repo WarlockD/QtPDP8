@@ -22,7 +22,7 @@ namespace PDP8 {
     }
 
 */
-    CpuState::CpuState() : _sw(0),  _run(false),_running(false),_singleStep(false),_int_has_enable(0){
+    CpuState::CpuState() : _sw(0), _runningState(RunningState::Stop){
          power();
          _int_has_enable=0;
          m.resize(MAX_MEMORY);
@@ -63,14 +63,26 @@ namespace PDP8 {
             _int_ion = false;
             _no_cif_pending = _no_ion_pending = true;
             r.lac = 0;
-            _singleStep = false;
-            _run = true;
+            _panelSwitch = s;
+            _runningState = RunningState::Run;
+        case PanelToggleSwitch::SingleStepInstruction:
+        case PanelToggleSwitch::SingleStepState:
+            _panelSwitch = s;
             break;
         case PanelToggleSwitch::Stop:
-            _run = false;
+            _runningState = RunningState::Stop;
             break;
         case PanelToggleSwitch::Cont:
-            _run = true;
+            switch(_panelSwitch) {
+            case PanelToggleSwitch::SingleStepInstruction: // single instruction
+                _runningState = RunningState::SingleStepInstruction;
+                break;
+            case PanelToggleSwitch::SingleStepState: // single instruction
+                _runningState = RunningState::SingleStepState;
+                break;
+            default:
+                _runningState = RunningState::Run; // any other mode we just run
+            }
             break;
         case PanelToggleSwitch::Exam:
              r.state = State::Fetch;
@@ -84,21 +96,18 @@ namespace PDP8 {
             r.pc = (r.ma +1) & 07777;
              m[r.ma] = r.mb;
             break;
-        case PanelToggleSwitch::SingleStep:
-            _run = false;
-            _singleStep = true;
-            break;
         case PanelToggleSwitch::LoadAdd:
-            _run = false;
+            _runningState = RunningState::Stop;
             r.ma = _sw & 07777;
             r.dfr = ((_sw>>12) & 07);
             r.ifr = ((_sw>>15) & 07);
             r.pc = r.ma;
             break;
-        case PanelToggleSwitch::Clear :
-        _int_ion = false;
-        _no_cif_pending = _no_ion_pending = true;
-        r.lac = 0;
+        case PanelToggleSwitch::Clear:
+            _runningState = RunningState::Stop;
+            _int_ion = false;
+            _no_cif_pending = _no_ion_pending = true;
+            r.lac = 0;
         break;
         }
     }
@@ -107,17 +116,34 @@ namespace PDP8 {
             if(v & 1) ss << std::oct << i << " ";
         }
     }
+std::vector<const Regesters> RegesterHistory::dump(size_t count) const{
+    // inline uint8_t decment(uint8_t v) const { return (v+1) & HIST_MASK; }
+     std::vector<const Regesters> v;
+     v.reserve(count);
+     size_t current_head = _head;
+     while(count--) {
+         current_head=(current_head-1) & HIST_MASK;
+         const Regesters& r= _array[current_head];
+         v.push_back(r);
+     }
+     return std::move(v);
+}
+std::vector<const Regesters> RegesterHistory::dump() const{
+    return dump(_count);
+}
+
 
     std::string CpuState::printState() const {
         std::stringstream ss;
         ss << "Int Ion        : " << (_int_ion ? "true" : "false") << std::endl;
         ss << "No Crf Pending : " << (_no_cif_pending ? "true" : "false") << std::endl;
         ss << "No ion Pending : " << (_no_ion_pending ? "true" : "false") << std::endl;
-        ss << "Done           : "; formating_bits(_dev_done,ss); ss << std::endl;
-        ss << "Enable         : "; formating_bits(_int_enable,ss); ss << std::endl;
+
         ss << "Req            : "; formating_bits(_int_req,ss); ss << std::endl;
         return ss.str();
     }
+
+
 }
 
 

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1130</width>
-    <height>643</height>
+    <width>1550</width>
+    <height>909</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -658,16 +658,6 @@
      </item>
     </layout>
    </widget>
-   <widget class="QTTY" name="simpleConsole">
-    <property name="geometry">
-     <rect>
-      <x>340</x>
-      <y>60</y>
-      <width>271</width>
-      <height>291</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QPushButton" name="pushButton_8">
     <property name="geometry">
      <rect>
@@ -711,9 +701,9 @@
     <property name="geometry">
      <rect>
       <x>640</x>
-      <y>50</y>
-      <width>451</width>
-      <height>291</height>
+      <y>240</y>
+      <width>271</width>
+      <height>101</height>
      </rect>
     </property>
     <property name="font">
@@ -761,13 +751,54 @@
      <string>focal</string>
     </property>
    </widget>
+   <widget class="PlacableTextEdit" name="stupidTerm" native="true">
+    <property name="geometry">
+     <rect>
+      <x>640</x>
+      <y>350</y>
+      <width>881</width>
+      <height>501</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QTTY2" name="simpleConsole" native="true">
+    <property name="geometry">
+     <rect>
+      <x>320</x>
+      <y>70</y>
+      <width>301</width>
+      <height>281</height>
+     </rect>
+    </property>
+   </widget>
+   <widget class="QPlainTextEdit" name="dsamEdit">
+    <property name="geometry">
+     <rect>
+      <x>633</x>
+      <y>50</y>
+      <width>641</width>
+      <height>181</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>Courier New</family>
+     </font>
+    </property>
+    <property name="lineWrapMode">
+     <enum>QPlainTextEdit::NoWrap</enum>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1130</width>
+     <width>1550</width>
      <height>21</height>
     </rect>
    </property>
@@ -796,9 +827,16 @@
    <header>console.h</header>
   </customwidget>
   <customwidget>
-   <class>QTTY</class>
-   <extends>QPlainTextEdit</extends>
-   <header>qtty.h</header>
+   <class>PlacableTextEdit</class>
+   <extends>QWidget</extends>
+   <header>placabletextedit.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QTTY2</class>
+   <extends>QWidget</extends>
+   <header>qtty2.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources/>

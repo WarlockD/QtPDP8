@@ -3,18 +3,11 @@
 
 #include "includes.h"
 #include "pdp8i.h"
+#include "terminal.h"
 // VT52 simple emulation for terminal
 namespace PDP8 {
-struct SerialInterface {
-    virtual bool haveData() const =0;
-    virtual int received()=0;
-    virtual void trasmit(unsigned char data) =0;
-    // If we have a screen
-    virtual ~SerialInterface() {}
-};
 
-
-class KL8C : public Device {
+class KL8C : public Device, public Terminal::SerialDCEInterface {
     static const uint32_t band110 = 100000;
     static const uint32_t baud150 = 66667;
     static const uint32_t baud300 = 33333;
@@ -26,7 +19,6 @@ class KL8C : public Device {
     static const uint32_t baunds[];//= { KL8C::band110,KL8C::baud150,KL8C::baud300,KL8C::baud600,KL8C::baud1200,KL8C::baud2400,KL8C::baud4800,KL8C::baud9600 };
     SimpleBuffer _outBuffer;
     SimpleBuffer _inBuffer;
-    std::shared_ptr<SerialInterface> _interface;
     char _ttiDev;
     char _ttoDev;
     unsigned char _ttiData;
@@ -40,7 +32,6 @@ class KL8C : public Device {
 
 
 public:
-    void setInterface(std::shared_ptr<SerialInterface> interface) { _interface = interface; }
     void setBaud(char v) {
         _currentBand = v & 7;
         _ttiEvent.setDelay(std::chrono::microseconds(baunds[_currentBand]));
@@ -53,22 +44,19 @@ public:
         setBaud(0);
         _ttiDev = 03;
         _ttoDev = 04;
-        _interface = nullptr;
         _ttiEvent.setFunction([this]{
-            if(_interface && _interface->haveData()) {
-                _ttiData = _interface->received() | 0200;
-                _ttiFlag = true;
-                updateInterrupts();
-               // _ttiEvent.stop();
-            }
+             if(internalRecive(_ttiData)) {
+                 _ttiData |= 0200;
+                 _ttiFlag = true;
+                 updateInterrupts();
+             }
         });
         //_ttiEvent.start();
          _ttoEvent.setFunction([this]{
-             if(_interface) {
-                 _interface->trasmit(_ttoData &0177);
-                 _ttoFlag = true;
-                 updateInterrupts();
-             }
+             internalTrasmit(_ttoData &0177); // lock this thread till we have free space to send?
+            // while(!_trasmitBuffer.push(_ttoData &0177));
+             _ttoFlag = true;
+             updateInterrupts();
          });
          _ttiEvent.start();
     }

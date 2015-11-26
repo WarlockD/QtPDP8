@@ -7,7 +7,9 @@
 
 
 
+void MainWindow::on_halt(const QString dsam) {
 
+}
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -17,8 +19,17 @@ MainWindow::MainWindow(QWidget *parent) :
     timer = new QTimer(this);
     connect(timer,&QTimer::timeout,this,&MainWindow::on_timer);
        timer->start(1000/15); // update 30 times a sec
-       connect(ui->simpleConsole,&QTTY::keyboardSend,this,&MainWindow::onData);
+       connect(ui->simpleConsole,&QTTY2::keyboardSend,this,&MainWindow::onData);
+       connect(ui->stupidTerm,&PlacableTextEdit::keyboardSend,this,&MainWindow::onData);
+       connect(this,&MainWindow::on_halt_signal,ui->dsamEdit,&QPlainTextEdit::setPlainText);
+
     cpu.power();
+    auto func([this](PDP8::Cpu& c){
+        QString str = QString::fromStdString(c.printHistory(16));
+        emit on_halt_signal(str);
+    });
+
+    cpu.setHaltCallback(func);
   //  pdp8Cpu.OpenDevices(nullptr,nullptr,nullptr,nullptr,0);
     //pdp8Cpu.LoadBoot((unsigned short*)&pdp8State.mem,false);
 
@@ -30,24 +41,32 @@ MainWindow::MainWindow(QWidget *parent) :
      // hack for now
 
     std::shared_ptr<PDP8::KL8C> ptr = std::make_shared<PDP8::KL8C>(cpu);
-    sinterface = std::make_shared<TempInterface>();
-    sinterface->setConsole(ui->simpleConsole);
+
+
     cpu.installDev(ptr,03,true);
     cpu.installDev(ptr,04,true);
     kl8c = ptr;
-    ptr->setInterface(sinterface);
+
     ui->switchRow->setSr(07777);
     cpu.regs().ma = 0200;
     cpu.regs().pc = 0200;
    //  pdp8Cpu.runIt(pdp8State);
      last_run_state= false;
+     auto test = std::bind(&MainWindow::onDataTerm,this,std::placeholders::_1);
+     kl8c->setCallBack(test);
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
 }
-
+void MainWindow::onDataTerm(Terminal::SerialDCEInterface&i)
+{
+    uint8_t data;
+    while(i.recive(data)) {
+        ui->stupidTerm->putChar(data);
+    }
+}
 void MainWindow::on_pushButton_clicked()
 {
      cpu.panelSwitch(PDP8::PanelToggleSwitch::Start);
@@ -55,7 +74,9 @@ void MainWindow::on_pushButton_clicked()
 
   void MainWindow::onData(int data) {
 
-      if(sinterface) sinterface->keyboardkey(data);
+      if(kl8c) Q_ASSERT(kl8c->trasmit(data)); // for now this should always work
+
+
   }
 
 void MainWindow::on_timer() {
@@ -132,7 +153,7 @@ void MainWindow::on_pushButton_5_clicked()
 
 void MainWindow::on_pushButton_6_clicked()
 {
-       cpu.panelSwitch(PDP8::PanelToggleSwitch::SingleStep);
+       cpu.panelSwitch(PDP8::PanelToggleSwitch::SingleStepInstruction);
 }
 
 void MainWindow::on_pushButton_8_clicked()
@@ -174,7 +195,7 @@ void MainWindow::on_pushButton_10_clicked()
     try{
         PDP8::LoadBin("focal69.bin",cpu);
     }catch(PDP8::PDP8_Exception& e) {
-
+ (void)e;
     }
 
     ui->switchRow->setSr(07777);
@@ -213,7 +234,7 @@ void MainWindow::on_pushButton_13_clicked()
      //   PDP8::LoadBin("maindec-08-dgv5a-b-pb.bin",cpu);
         PDP8::LoadBin("dhvtc-d-pb",cpu);
     }catch(PDP8::PDP8_Exception& e) {
-
+        (void)e;
     }
 
     ui->switchRow->setSr(0);
@@ -229,7 +250,7 @@ void MainWindow::on_pushButton_14_clicked()
        PDP8::LoadBin("focal69.bin",cpu);
       //  PDP8::LoadBin("dhvtc-d-pb",cpu);
     }catch(PDP8::PDP8_Exception& e) {
-
+ (void)e;
     }
 
     ui->switchRow->setSr(0);

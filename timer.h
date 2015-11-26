@@ -12,10 +12,14 @@
 #include <hash_set>
 #include <functional>
 #include <QDebug>
+#include <mutex>
+#include <condition_variable>
 
 class SimpleThread {
     std::atomic<bool> _die;
     std::atomic<bool> _dead;
+    std::mutex _mutex;
+    std::condition_variable _cv;
     void _threadRun() {
         _die = _dead = false;
         qDebug() << "Starting Simple Thread";
@@ -23,17 +27,26 @@ class SimpleThread {
         _dead = true;
         qDebug() << "Ending Simple Thread";
     }
-
 protected:
     virtual bool threadFunction() = 0;
     void startThread() { if(!_dead) std::thread(&SimpleThread::_threadRun,this).detach(); }
     void stopThread() { _die = true; while(!_dead); }
+    inline void lockMutex() { _mutex.lock(); }
+    inline void unlockMutex() { _mutex.unlock(); }
+    inline void notifyAll() { _cv.notify_all(); }
+    // this is just a wrapper for the cv
+    void waitFor(std::function<bool()> func) {
+        std::unique_lock<std::mutex> lk(_mutex);
+        _cv.wait(lk,func);
+    }
 
 public:
     SimpleThread() : _die(false), _dead(false) {
         //std::thread(&SimpleThread::_threadRun,this).detach();
     }
     inline bool threadRunning() const { return !_dead; }
+
+
     virtual ~SimpleThread() {
         stopThread();
     }

@@ -6,33 +6,15 @@
 #include <QMainWindow>
 #include <QTimer>
 #include <QQueue>
-#include "console.h"
-#include "qtty.h"
+#include <QDebug>
 
+#include "console.h"
+#include "qtty2.h"
+#include "placabletextedit.h"
 namespace Ui {
 class MainWindow;
 }
-class TempInterface : public PDP8::SerialInterface {
-    QQueue<int> _outData;
-    QTTY* _console;
-public:
-    TempInterface() {}
-    void setConsole(QTTY* c) { _console =c; }
-    virtual bool haveData() const {
-        return !_outData.empty();
-    }
-    virtual int received() {
-        return haveData() ? _outData.dequeue() : -1;
-    }
 
-    virtual void trasmit(unsigned char data) {
-       if(_console) _console->putData(QChar::fromLatin1(data));
-    }
-    void keyboardkey(int data) {
-        _outData.enqueue(data);
-    }
-
-};
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -40,10 +22,12 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
-
+signals:
+    void on_halt_signal(const QString& dsam);
 private slots:
     void on_pushButton_clicked();
     void on_timer();
+    void on_halt(const QString dsam);
        void onData(int data);
        void on_pushButton_2_clicked();
 
@@ -70,11 +54,12 @@ private slots:
        void on_pushButton_14_clicked();
 
 private:
+    void  onDataTerm(Terminal::SerialDCEInterface&i);
     Ui::MainWindow *ui;
     QTimer *timer;
     PDP8::ThreadedCPU cpu;
     std::shared_ptr<PDP8::KL8C> kl8c;
-    std::shared_ptr<TempInterface> sinterface;
+   // std::shared_ptr<Terminal::SerialDCEInterface> sinterface;
 };
 
 #endif // MAINWINDOW_H

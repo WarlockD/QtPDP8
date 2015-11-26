@@ -29,7 +29,11 @@ SOURCES += main.cpp\
     pdp8interrupts.cpp \
     tty_vt52.cpp \
     qtty.cpp \
-    stupidvt52widget.cpp
+    placabletextedit.cpp \
+    qtty2.cpp \
+    terminal.cpp \
+    termina_vt52.cpp \
+    pdp8events.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -48,7 +52,11 @@ HEADERS  += mainwindow.h \
     includes.h \
     tty_vt52.h \
     qtty.h \
-    stupidvt52widget.h
+    placabletextedit.h \
+    qtty2.h \
+    terminal.h \
+    termina_vt52.h \
+    pdp8events.h
 
 FORMS    += mainwindow.ui
 

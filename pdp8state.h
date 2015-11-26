@@ -3,7 +3,9 @@
 
 #include "includes.h"
 #include "pdp8interrupts.h"
+#include "pdp8dissam.h"
 #include <array>
+#include <set>
 
 namespace PDP8 {
 enum class State {
@@ -13,6 +15,16 @@ enum class State {
     Iot,
     Opr
 };
+enum class RunningState {
+     Halt=-1,   // when the cpu makes a halt op
+    Stop=0,
+    SingleStepInstruction,
+    SingleStepState,
+    Run,
+    // These are debugging functions
+
+};
+
 struct Regesters {
     State state;
     int32_t pc;
@@ -42,28 +54,24 @@ class RegesterHistory {
     static const size_t HIST_COUNT = 64;
     static const size_t HIST_MASK = (HIST_COUNT-1);
 
-    std::array<Regesters,HIST_COUNT> hst;//[HIST_COUNT];
+    std::array<Regesters,HIST_COUNT> _array;//[HIST_COUNT];
     size_t _head;
-    size_t _tail;
     size_t _count;
+    inline uint8_t increment(uint8_t v) const { return (v+1) & HIST_MASK; }
 public:
-    RegesterHistory() : _tail(0), _head(0) ,_count(0) {
-      std::memset(&hst,0,sizeof(Regesters)*64);
+    RegesterHistory() : _head(0) ,_count(0) {}
+    bool push(const Regesters& r) {
+        _array[_head] = r;
+        _head = (_head+1) & HIST_MASK;
+        if(_count < HIST_COUNT )_count++;
+        return true;
     }
-    void push(const Regesters& r) {
-        if(_count == HIST_COUNT){
-            _tail = _head;
-        }
-        hst[_head] = r;
-        _head = (_head + 1) % HIST_COUNT;
-        _count = std::max(_count+1,HIST_COUNT);
-    }
+    const Regesters& last() const { return _array[(_head-1) & HIST_MASK]; }
     size_t count() const { return _count; }
-    size_t begin() const { return _head-1; }
-    size_t end() const { return _tail; }
-    const Regesters& operator[](size_t i) const { return hst[i% HIST_COUNT]; }
-
-    std::string printDisam(size_t count) const;
+    void clear() { _head = _count = 0; }
+    // Did I mention I LOVE C++11 std::move?
+    std::vector<const Regesters> dump() const;
+    std::vector<const Regesters> dump(size_t count) const;
 };
 
 // this class is a serial interface to an internal of a device
@@ -83,22 +91,53 @@ class CpuState;
 class Device {
 protected:
     CpuState& c;
+
     Device(CpuState& c);
 public: // abstract interface
+    virtual void tick() {}
     virtual void clear() = 0;
     virtual void iot() = 0;
     virtual void updateInterrupts()=0;
     virtual std::string debug() const = 0;
      virtual ~Device() {}
-
 };
+
+class Bus;
+class BusEvent {
+private: // EventQueue only has access to these
+    Bus* _bus;
+    uint64_t _delay; // internal delay
+    BusEvent* _next;
+public: // outside interface
+    void addToBus(Bus* bus);
+    void removeFromBus();
+    bool start();
+    bool stop();
+    bool pause();
+protected:
+    uint64_t _interval;
+    bool _restart;
+    bool _isRunning; // only availabe in Bus
+public:
+    BusEvent(uint64_t  interval, bool restart=false) : _interval(interval), _restart(restart),_bus(nullptr) {}
+    virtual ~BusEvent() {}
+    bool restart() const { return _restart;}
+    uint64_t interval() const { return _interval; }
+    virtual bool tick() = 0; // return true to restart event
+    friend class Bus;
+};
+
+
+
+
 typedef std::shared_ptr<Device> DevicePtr;
 
 enum class PanelToggleSwitch {
     Start,
     Stop,
     Cont,
-    SingleStep,
+    SingleStepState,
+    SingleStepInstruction,
     Dep,
     Exam,
     LoadAdd,
@@ -106,21 +145,21 @@ enum class PanelToggleSwitch {
 };
 
 class CpuState {
+
 protected:
+
+ std::atomic<RunningState> _runningState;
     static const size_t MAX_MEMORY = 32768;
     Regesters r;
     MainMemory m;
     uint32_t _sw;
 
-    bool _run;      // the state of the engine
-    bool _running; // on if the thread is running
-    bool _singleStep;
+    PanelToggleSwitch _panelSwitch; // used to figure out where the switch when we do a cont
+
     bool _no_ion_pending;
     bool _no_cif_pending;
     bool _int_ion;
-
-    std::atomic<uint64_t> _dev_done;// = 0;                                     /* dev done flags */
-    std::atomic<uint64_t>  _int_enable;// = INT_INIT_ENABLE;                     /* intr enables */
+                     /* intr enables */
     std::atomic<uint64_t>  _int_req ;                                      /* intr requests */
     uint64_t _int_has_enable; // mask for enables on reset
 
@@ -154,16 +193,19 @@ public: // diffrent switches
 public: // getters and setters
     inline Regesters& regs() { return r; }
     inline unsigned short& operator[](int v) { return m[v]; }
-    inline bool run() const { return _run; }
-    inline bool running() const { return _running; }
-    inline bool singleStep() const { return _singleStep; }
+    inline RunningState runningState() const { return _runningState.load(std::memory_order_seq_cst); }
+
+    virtual void setRunningState(RunningState state) {
+        _runningState.store(state,std::memory_order_seq_cst);
+    }
+    inline bool run() const { return _runningState == RunningState::Run; }
+    inline bool singleStep() const { return _runningState == RunningState::SingleStepInstruction ||_runningState == RunningState::SingleStepState ; }
     inline bool skip() const { return _skip; }
     inline void setSkip() { _skip = true; }
     inline State state() const { return r.state; }
 public:
     inline void enableInterrupts() { _int_ion = true; }
     inline  void disabbleInterrupts() { _int_ion = false; }
-    inline void updateInterrupts()  { _int_req = (_int_req &~_int_has_enable) | (_dev_done & _int_enable); }
 
     void installDevInt(char dev,bool defaultIntEnable) {
         if(defaultIntEnable) _int_has_enable |=((uint64_t)1<<dev); else _int_has_enable &=~((uint64_t)1<<dev);
@@ -177,16 +219,10 @@ public:
 
 
   //  DevicePtr operator[](char dev) { return _iots[dev & 077]; }
-    inline void enableDevInterrupt(char dev) {  _int_enable |= ((uint64_t)1<<dev); }
-    inline void disableDevInterrupt(char dev) { _int_enable &= ~((uint64_t)1<<dev); }
-    inline bool isInterruptEnabled(char dev) const { return ((_int_has_enable & ((uint64_t)1<<dev)) & _int_enable) != 0; }
     inline void setInterruptRequest(char dev) { _int_req |= ((uint64_t)1<<dev);  }
     inline void clearInterruptRequest(char dev) { _int_req &= ~((uint64_t)1<<dev);  }
     inline void interruptRequest(char dev, bool state) { if(state) _int_req |= ((uint64_t)1<<dev); else _int_req &= ~((uint64_t)1<<dev); }
-    inline bool hasInterrupt(char dev) const { return ((_int_enable & ((uint64_t)1<<dev)) & _int_req) != 0;  }
-    inline bool isDone(char dev) const { return _dev_done & ((uint64_t)1<<dev); }
-    inline void setDone(char dev)  { _dev_done |= ((uint64_t)1<<dev);  }
-    inline void clearDone(char dev)  { _dev_done &= ~((uint64_t)1<<dev); }
+    inline bool hasInterrupt(char dev) const { return (((uint64_t)1<<dev) & _int_req) != 0;  }
     inline bool interruptPending() const {
         if(_int_ion && _no_cif_pending && _no_ion_pending) return _int_req > 0;
         return false;

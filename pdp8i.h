@@ -8,6 +8,7 @@
 #include "pdp8_utilities.h"
 #include "pdp8dissam.h"
 #include "timer.h"
+#include "pdp8events.h"
 namespace PDP8 {
 
 
@@ -21,6 +22,7 @@ namespace PDP8 {
     };
 
     class Cpu : public CpuState {
+        Bus _bus;
     public:
 
 
@@ -30,14 +32,17 @@ namespace PDP8 {
         int cinf;
         uint64_t time;
           int ilag;
-        std::queue<int> terminal_in;
-        std::queue<int> terminal_out;
+        std::function<void(Cpu&)> _haltCallback;
+        std::chrono::nanoseconds _current_cycle;
         RegesterHistory hst;
     public:
         Cpu() {
 
             cinf=ilag=0;
+            _haltCallback =nullptr;
         }
+        // carful, this is called from another thread
+        void setHaltCallback(std::function<void(Cpu&)> c) { _haltCallback = c; }
         void installDev(DevicePtr ptr, char dev,bool defaultIntEnable) {
             installDevInt(dev,defaultIntEnable);
             //if(defaultIntEnable) _int._int_has_enable |=((uint64_t)1<<dev); else _int._int_has_enable &=~((uint64_t)1<<dev);
@@ -47,9 +52,7 @@ namespace PDP8 {
             removeDevEnableInt(dev);
             _iots[dev & 077] = nullptr;
         }
-        void terminalIn(int c) {
-            terminal_in.emplace(c);
-        }
+
 
         void checkInterupts() {
             if(interruptPending()) {
@@ -121,8 +124,6 @@ namespace PDP8 {
                       r.emode = 0;
                       _int_req = 0;
                       _int_ion = _no_ion_pending = false;
-                      _dev_done = 0;
-                      _int_enable = _int_has_enable;
                         _no_cif_pending = false;
                       r.lac = 0;
                       for(int i=0;i<64;i++)
@@ -147,72 +148,6 @@ namespace PDP8 {
             return 0;
         }
 
-        int stupid_step() {
-            if( !_no_cif_pending && (r.ir == 4 || r.ir == 5))  _no_cif_pending = true;
-            if(interruptPending()) {
-                _int_ion = false;                                   /* interrupts off */
-                r.sf = (r.UF << 6) | (r.IF >> 9) | (r.DF >> 12);    /* form save field */
-                r.UF = r.IB = r.DF = r.UF = r.UB = 0;               /* clear mem ext */
-                hst.push(r);
-                m[0] = r.pc;
-                r.pc = 1;
-            }
-            _no_ion_pending = true;
-
-              //   _interrupt_enable=_interrupt_enable_delay;
-                    hst.push(r);
-              r.mb=m[r.pc];
-              r.ma=( ( r.mb&0177 )+( r.mb&0200?( r.pc&07600 ):0 ) );
-              r.pc=( ( r.pc+1 )&07777 );
-              r.lac&=017777;
-             // ibus=( cinf||coutf||dskfl );
-              r.ma=SetMa(r.mb,r.ma);
-              switch ( r.mb&07000 ) {
-              case 0000:
-                  r.lac&=( m[r.ma]|010000 );
-                break;
-              case 01000:r.lac+=m[r.ma];
-               break;
-              case 02000:
-                  if ( ( m[r.ma]=( 1+m[r.ma] )&07777 )==0 ) _skip = true;
-               break;
-              case 03000:
-                  m[r.ma]=r.lac&07777;
-                  r.lac&=010000;
-               break;
-              case 04000:
-                  m[r.ma]=r.pc&07777;
-                  r.pc=( r.ma+1 )&07777;
-                  _no_cif_pending = true;
-               break;
-              case 05000:
-                  r.pc=( r.ma&07777 );
-                    _no_cif_pending = true;
-               break;
-              case 06000:
-
-                  iot();
-               // ac=iot( ac, md, &flg )|( ac&010000 );
-              //  if ( flg ) pc++;
-               break;
-              case 07000:
-                  if ( r.mb&0400 ) {
-                      if ( r.mb&0400 ) {
-                         if ( r.mb&1 ) {group3( r.lac, r.mq, r.mb ); break; }
-                         if ( r.mb&2 ) { _run = false; return 1; }
-                         r.pc=group2( r.lac, r.pc, r.mb );
-                         if ( r.mb&0200 ) r.lac&=010000;
-                         if ( r.mb&4 ) r.lac|=_sw & 07777;
-                         break;
-                     }
-                  }
-                     r.lac=group1( r.lac, r.mb );
-                     break;
-              }
-              if(_skip) { r.pc = (r.pc+ 1) & 07777; _skip = false; }// else  r.ma = r.pc;
-              return 0;
-        }
-
         int32_t SetMa(int16_t md,int16_t ma){
            if ((md&07000)<06000)
             if ( md&0400 ) {
@@ -224,11 +159,11 @@ namespace PDP8 {
 
 
         void fetch() {
-            time += 15UL;
+            _current_cycle += std::chrono::nanoseconds(15);
             _skip = false; // make sure skip is reset, ISZ before interrupt issue
              _no_ion_pending = true; // intrupets are
             // T1
-            r.pc = (r.ma +1) & 0xFFF;
+             r.pc = (r.ma +1) & 0xFFF;
             // T2
              r.mb = m[r.ma | r.IF]; // T2
              r.ir = r.mb >> 9;
@@ -251,10 +186,11 @@ namespace PDP8 {
              case 7:
                  if ( r.mb&0400 ) {
                     if ( r.mb&1 ) {group3( r.lac, r.mq, r.mb ); break; }
-                    if ( r.mb&2 ) { _run = false; break; }
+                    if ( r.mb&2 ) { _runningState = RunningState::Halt;  ; break; }
                     r.pc=group2( r.lac, r.pc, r.mb );
                     if ( r.mb&0200 ) r.lac&=010000;
-                    if ( r.mb&4 ) r.lac|=_sw & 07777;
+                    if ( r.mb&4 )
+                        r.lac|=_sw & 07777;
                     break;
                 }
                 r.lac=group1( r.lac, r.mb );
@@ -263,11 +199,11 @@ namespace PDP8 {
              checkInterupts(); // T4
         }
         void defer() {
-          time += 15UL;
+          _current_cycle += std::chrono::nanoseconds(15);
           if((r.ma & 07770) != 00010)
               r.mb = m[r.ma];
           else {
-              time += 2UL;  // check pdp8i specs
+               _current_cycle += std::chrono::nanoseconds(2); //time += 2UL;  // check pdp8i specs
               r.mb = (m[r.ma] = (m[r.ma]+1) & 07777) ; // auto incrment
           }
           if(r.ir == 5) { // The flow says pc is set from mem/mem+1 but if its in b just move it
@@ -282,7 +218,7 @@ namespace PDP8 {
 
         }
               void execute() {
-                  time += 15UL;
+                  _current_cycle += std::chrono::nanoseconds(15);
                   r.mb = m[r.ma];
                   switch(r.ir) {
                   case 0:
@@ -313,15 +249,18 @@ namespace PDP8 {
                    checkInterupts();
 
               }
-              void state_step() {
-                  hst.push(r);
-                  switch( r.state) {
-                    case State::Fetch:
-                      fetch();
-                      break;
-                  case State::Defer: defer(); break;
-                  case State::Execute: execute(); break;
-                  }
+              void state_step(bool fullInstruction=false) {
+                  //hst.push(r);
+                do {
+                      switch( r.state) {
+                        case State::Fetch:
+                          hst.push(r);
+                          fetch(); break;
+                        case State::Defer: defer(); break;
+                        case State::Execute: execute(); break;
+                      }
+                  } while(fullInstruction && r.state != State::Fetch);
+
               }
               std::string printHistory(size_t i) ;
     private:
@@ -389,41 +328,14 @@ namespace PDP8 {
 
 
     class ThreadedCPU : public Cpu, public SimpleThread {
+        RunningState _lastState;
         //std::mutex _mtx; // just in case
   public:
-        ThreadedCPU() {
-            startThread();
-        }
+        ThreadedCPU();
     protected:
           // run this using std::thread
-          inline bool threadFunction() override {
-              if(!_run) {
-                   _running = false;
-                  std::this_thread::sleep_for(std::chrono::milliseconds(50)); // sleap for a bit
-
-            } else {
-                _running  = true;
-                std::chrono::nanoseconds current_cycle = std::chrono::nanoseconds::zero();
-
-                if(_singleStep) {
-                    state_step();
-                    _run = false;
-                } else {
-                    auto start = std::chrono::high_resolution_clock::now();
-                    for(int i=0;i<1000;i++) {
-                        state_step();
-                        if(!_run) break;
-                    }
-                    auto end = std::chrono::high_resolution_clock::now();
-                   // std::chrono::duration<double> diff = end-start;
-                    auto mdiff = std::chrono::duration_cast<std::chrono::nanoseconds>(end-start);
-                    auto ydiff = std::chrono::duration_cast<std::chrono::nanoseconds>(current_cycle-mdiff);
-                    if(ydiff.count() >0)  std::this_thread::sleep_for(ydiff);
-                }
-            }
-            return true; // always return true as this never stops
-        }
-
+          bool threadFunction() override;
+          void setRunningState(RunningState state) override;
     };
 
 }

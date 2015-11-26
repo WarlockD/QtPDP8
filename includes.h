@@ -18,6 +18,8 @@
 #include <sstream>
 #include <iostream>
 #include <mutex>          // std::mutex
+#include <condition_variable>
+#include <atomic>
 
 #include <stdio.h>
 #include <stdlib.h>
