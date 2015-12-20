@@ -638,7 +638,7 @@ std::string dsam8(uint16_t op, uint16_t pc, const uint16_t* mem, bool comment) {
         break;
 
           }
-    if(comment) disbuf << " / " << combuf.str();
+    if(comment&& combuf.str().length() > 0) disbuf << " / " << combuf.str();
     return disbuf.str();
  }
 /*

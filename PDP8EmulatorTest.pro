@@ -33,7 +33,12 @@ SOURCES += main.cpp\
     qtty2.cpp \
     terminal.cpp \
     termina_vt52.cpp \
-    pdp8events.cpp
+    pdp8events.cpp \
+    wiretest.cpp \
+    pdp8_rk05.cpp \
+    pdp8_rf08.cpp \
+    pdp11_cpu.cpp \
+    pdp8_silly.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -56,7 +61,12 @@ HEADERS  += mainwindow.h \
     qtty2.h \
     terminal.h \
     termina_vt52.h \
-    pdp8events.h
+    pdp8events.h \
+    wiretest.h \
+    pdp8_rk05.h \
+    pdp8_rf08.h \
+    pdp11_cpu.h \
+    pdp8_silly.h
 
 FORMS    += mainwindow.ui
 

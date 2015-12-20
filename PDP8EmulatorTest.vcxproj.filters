@@ -1,0 +1,591 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;moc;h;def;odl;idl;res;</Extensions>
+    </Filter>
+    <Filter Include="Generated Files">
+      <UniqueIdentifier>{71ED8ED8-ACB9-4CE9-BBE1-E00B30144E11}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;moc;h;def;odl;idl;res;</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{D9D6E242-F8AF-46E4-B9FD-80ECBC20BA3E}</UniqueIdentifier>
+      <Extensions>qrc;*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Distribution Files">
+      <UniqueIdentifier>{B83CAF91-C7BF-462F-B76C-EA11631F866C}</UniqueIdentifier>
+      <Extensions>*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Distribution Files">
+      <UniqueIdentifier>{B83CAF91-C7BF-462F-B76C-EA11631F866C}</UniqueIdentifier>
+      <Extensions>*</Extensions>
+      <ParseFiles>false</ParseFiles>
+    </Filter>
+    <Filter Include="Generated Files\Debug">
+      <UniqueIdentifier>{bcb538d5-e44c-4dbb-8713-f284ccd7e958}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+    <Filter Include="Generated Files\Release">
+      <UniqueIdentifier>{b3388e81-bd9a-4e5c-a3a9-c3bdc73ec13c}</UniqueIdentifier>
+      <Extensions>cpp;moc</Extensions>
+      <SourceControlFiles>False</SourceControlFiles>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="codeeditor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="console.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mainwindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="numberarea.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="octalvalidator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="panelswitch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp11_cpu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8_rf08.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8_rk05.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8_silly.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8_utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8dissam.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8dissmwindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8events.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8i.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8interrupts.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pdp8state.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="placabletextedit.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="qtty.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="qtty2.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="switchrow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="termina_vt52.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="terminal.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="timer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="tty_vt52.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="wiretest.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_codeeditor.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_codeeditor.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_console.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_console.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_mainwindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_mainwindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_octalvalidator.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_octalvalidator.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_panelswitch.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_panelswitch.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_pdp8_silly.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_pdp8_silly.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_pdp8dissmwindow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_pdp8dissmwindow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_placabletextedit.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_placabletextedit.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_qtty.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_qtty.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_qtty2.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_qtty2.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="Debug\moc_switchrow.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="Release\moc_switchrow.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\qrc_pdp8emulator.cpp">
+      <Filter>Generated Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="codeeditor.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="console.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="includes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="mainwindow.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="numberarea.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="octalvalidator.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="panelswitch.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="pdp11_cpu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pdp8_rf08.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pdp8_rk05.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="pdp8_silly.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="pdp8_utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pdp8dissam.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="pdp8dissmwindow.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="pdp8events.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pdp8i.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pdp8interrupts.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pdp8state.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <CustomBuild Include="placabletextedit.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="qtty.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="qtty2.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="switchrow.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <ClInclude Include="termina_vt52.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="terminal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="timer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="tty_vt52.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wiretest.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="mainwindow.ui">
+      <Filter>Form Files</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DF32.DSK">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D1EB-PB.pt.fixed">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D1EB-PB.pt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D1GD-PB.pt.fixed">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D1GD-PB.pt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D1HA-PB.pt.fixed">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D1HA-PB.pt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D5EB.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-08-D5FA.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-8I-D01C-PB.pt.fixed">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-8I-D01C-PB.pt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-8I-D02B-PB.pt.fixed">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEC-8I-D02B-PB.pt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEX-08-D1GB-PB.pt.fixed">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEX-08-D1GB-PB.pt">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diags\MAINDEX-08-D1GB.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="TELETYPE1945-1985.ttf">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-a2b1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-a2c2-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-a2c7-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-afa2-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-afc1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-afc3-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-aj1e-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-aj6e-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-ajae-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-asb1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-cddb-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-cma1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-coc1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-coc2-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-esab-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-esac-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-lbasa-a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-yq1a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-yq2a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-yq3a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-08-yq4a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-afa1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-afa2-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-afa3-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-afa4-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-afa5-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-afa6-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-asac-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-cde1-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-cde2-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-esac-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-esad-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-pdad-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-pdze-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\dec-d8-sbaf-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\decus-8-111.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\decus-8-158.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="diagpack2.rk05">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d02b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d04b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d05b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d07b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1ac-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1b1-pm.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1b2-pm.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1ec-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1gd-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1ha-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1l1-pm.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d1l2-pm.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d2pe-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d2qd-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-d5db-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-dhkab-a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-dhkma-c-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-dhkmc-b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-dhmca-a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-didfb-a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-didfc-a-pb-mod.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-08-didfc-a-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8e-d0ab-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8e-d0bb-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8e-d1fb-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8i-d01b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8i-d02b-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8i-d5bb-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="pt\maindec-8i-d6ac-pb.bin">
+      <Filter>Resource Files</Filter>
+    </None>
+    <CustomBuild Include="pdp8emulator.qrc">
+      <Filter>Resource Files</Filter>
+    </CustomBuild>
+    <None Include="rf_diags.dsk">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="typewriter.ttf">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="veteran">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="TELETYPE1945-1985.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TELETYPE1945-1985.ttf">
+      <Filter>Distribution Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GeneratedFiles\ui_mainwindow.h">
+      <Filter>Generated Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="veteran typewriter.ttf">
+      <Filter>Resource Files</Filter>
+    </Font>
+  </ItemGroup>
+</Project>

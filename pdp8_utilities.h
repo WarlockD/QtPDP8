@@ -9,6 +9,7 @@
 #include <chrono>
 #include <future>
 //#include <cstdio>
+
 #include "pdp8state.h"
 
 // This is a simple protected setter getter macro maker
@@ -113,7 +114,7 @@ public:
 };
 std::string to_octal(int num,const char* fmt="%04o") ;
 inline bool isIndirect(uint16_t a) { return a & 0x100; }
-inline bool isCurrent(uint16_t a) { return a & 0x80; } //0200
+inline bool isCurrent(uint16_t a) { return a & 0200; } //0200
 class octzero {
 
     int _num;
@@ -153,6 +154,10 @@ std::ostream& operator<< (std::ostream& s, const octzero& o) ;
     void LoadRim(const std::string& filename, CpuState& s, size_t origin =0200);
     void LoadBin(std::istream& i ,CpuState& s, size_t loc =0200);
     void LoadBin(const std::string& filename, CpuState& s, size_t origin =0200);
+    void LoadBin(const std::vector<char>& data, CpuState& s, size_t origin =0200);
+    void LoadRim(const std::vector<char>& data, CpuState& s, size_t origin =0200);
+
+    void LoadRim(const std::vector<char>& i ,unsigned short* M, size_t origin=0200);
 
     void LoadPaperTape(const std::string& filename, CpuState& s, size_t origin =0200);
 

@@ -18,7 +18,7 @@ class Cursor {
     short _y;
 public:
     Cursor() : _x(0), _y(0) {}
-    Cursor(size_t x, size_t y) : _x(x), _y(y) {}
+    Cursor(short x, short y) : _x(x), _y(y) {}
     inline void moveUp(short i=1) { _y-=i; }
     inline void moveDown(short i=1) { _y+=i; }
     inline void moveRight(short i=1) { _x=+i; }

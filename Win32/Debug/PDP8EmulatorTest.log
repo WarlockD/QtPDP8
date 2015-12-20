@@ -1,0 +1,240 @@
+﻿Build started 12/13/2015 10:22:29 AM.
+     1>Project "E:\GitHub\QtPDP8\PDP8EmulatorTest.vcxproj" on node 2 (Rebuild target(s)).
+     1>_PrepareForClean:
+         Deleting file "Win32\Debug\PDP8EmulatorTest.tlog\PDP8EmulatorTest.lastbuildstate".
+       InitializeBuildStatus:
+         Touching "Win32\Debug\PDP8EmulatorTest.tlog\unsuccessfulbuild".
+       CustomBuild:
+         Moc'ing codeeditor.h...
+         Moc'ing console.h...
+         Moc'ing mainwindow.h...
+         Moc'ing octalvalidator.h...
+         Moc'ing panelswitch.h...
+         Moc'ing pdp8_silly.h...
+         Moc'ing pdp8dissmwindow.h...
+         Moc'ing placabletextedit.h...
+         Moc'ing qtty.h...
+         Moc'ing qtty2.h...
+         Moc'ing switchrow.h...
+         Uic'ing mainwindow.ui...
+     1>E:\GitHub\QtPDP8\mainwindow.ui : warning : The name 'layoutWidget' (QWidget) is already in use, defaulting to 'layoutWidget1'.
+         Rcc'ing pdp8emulator.qrc...
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /I. /ID:\Qt\5.6a\qtbase\include /ID:\Qt\5.6a\qtbase\include\QtWidgets /ID:\Qt\5.6a\qtbase\include\QtGui /ID:\Qt\5.6a\qtbase\include\QtANGLE /ID:\Qt\5.6a\qtbase\include\QtCore /Idebug /I. /I"D:\Qt\5.6a\qtbase\mkspecs\win32-msvc2015" /I.\GeneratedFiles /Zi /nologo /W3 /WX- /Od /Oy- /D _WINDOWS /D UNICODE /D WIN32 /D QT_WIDGETS_LIB /D QT_GUI_LIB /D QT_CORE_LIB /D QT_OPENGL_ES_2 /D QT_OPENGL_ES_2_ANGLE /Gm- /EHsc /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"Win32\Debug\\" /Fd"Win32\Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt -Zc:strictStrings -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 codeeditor.cpp console.cpp Debug\moc_codeeditor.cpp Debug\moc_console.cpp Debug\moc_mainwindow.cpp Debug\moc_octalvalidator.cpp Debug\moc_panelswitch.cpp Debug\moc_pdp8dissmwindow.cpp Debug\moc_pdp8_silly.cpp Debug\moc_placabletextedit.cpp Debug\moc_qtty.cpp Debug\moc_qtty2.cpp Debug\moc_switchrow.cpp main.cpp mainwindow.cpp numberarea.cpp octalvalidator.cpp panelswitch.cpp pdp11_cpu.cpp pdp8_rf08.cpp pdp8_rk05.cpp pdp8_silly.cpp pdp8_utilities.cpp pdp8dissam.cpp pdp8dissmwindow.cpp pdp8events.cpp pdp8i.cpp pdp8interrupts.cpp pdp8state.cpp placabletextedit.cpp qtty.cpp qtty2.cpp switchrow.cpp termina_vt52.cpp terminal.cpp timer.cpp tty_vt52.cpp wiretest.cpp
+         codeeditor.cpp
+         console.cpp
+         moc_codeeditor.cpp
+         moc_console.cpp
+         moc_mainwindow.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         moc_octalvalidator.cpp
+         moc_panelswitch.cpp
+         moc_pdp8dissmwindow.cpp
+         moc_pdp8_silly.cpp
+         moc_placabletextedit.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         moc_qtty.cpp
+         moc_qtty2.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         moc_switchrow.cpp
+         main.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         mainwindow.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+     1>e:\github\qtpdp8\pdp11_cpu.h(314): warning C4100: 'addr': unreferenced formal parameter
+     1>e:\github\qtpdp8\pdp11_cpu.h(836): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+     1>C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(765): warning C4100: '_Tid': unreferenced formal parameter
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(777): note: see reference to function template instantiation 'Terminal::SerialDCEInterface &std::_Select_fixer<_Cv_TiD,false,false,1>::_Fix<std::tuple<Terminal::SerialDCEInterface &>>(_Cv_TiD &,_Untuple &&)' being compiled
+                 with
+                 [
+                     _Cv_TiD=std::_Ph<1>,
+                     _Untuple=std::tuple<Terminal::SerialDCEInterface &>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(777): note: see reference to function template instantiation 'Terminal::SerialDCEInterface &std::_Select_fixer<_Cv_TiD,false,false,1>::_Fix<std::tuple<Terminal::SerialDCEInterface &>>(_Cv_TiD &,_Untuple &&)' being compiled
+                 with
+                 [
+                     _Cv_TiD=std::_Ph<1>,
+                     _Untuple=std::tuple<Terminal::SerialDCEInterface &>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(791): note: see reference to function template instantiation 'Terminal::SerialDCEInterface &std::_Fix_arg<std::_Ph<1>,std::tuple<Terminal::SerialDCEInterface &>>(_Cv_TiD &,_Untuple &&)' being compiled
+                 with
+                 [
+                     _Cv_TiD=std::_Ph<1>,
+                     _Untuple=std::tuple<Terminal::SerialDCEInterface &>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(847): note: see reference to function template instantiation 'void std::_Call_binder<std::_Unforced,0,1,_Ty1,_Ty2,std::tuple<Terminal::SerialDCEInterface &>>(std::_Forced<std::_Unforced,false>,std::integer_sequence<_Ty,0,1>,_Cv_FD &,_Cv_tuple_TiD &,_Untuple &&)' being compiled
+                 with
+                 [
+                     _Ty1=void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),
+                     _Ty2=std::tuple<MainWindow *,std::_Ph<1>>,
+                     _Ty=size_t,
+                     _Cv_FD=void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),
+                     _Cv_tuple_TiD=std::tuple<MainWindow *,std::_Ph<1>>,
+                     _Untuple=std::tuple<Terminal::SerialDCEInterface &>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\type_traits(1349): note: see reference to function template instantiation 'void std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>::operator ()<Terminal::SerialDCEInterface&>(Terminal::SerialDCEInterface &)' being compiled
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\type_traits(1348): note: see reference to function template instantiation 'void std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>::operator ()<Terminal::SerialDCEInterface&>(Terminal::SerialDCEInterface &)' being compiled
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\type_traits(1417): note: see reference to function template instantiation 'void std::_Invoker_functor::_Call<_Callable&,Terminal::SerialDCEInterface&>(std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>,Terminal::SerialDCEInterface &)' being compiled
+                 with
+                 [
+                     _Callable=_Decayed
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\type_traits(1434): note: see reference to function template instantiation 'void std::invoke<_Callable&,Terminal::SerialDCEInterface&>(std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>,Terminal::SerialDCEInterface &)' being compiled
+                 with
+                 [
+                     _Callable=_Decayed
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(208): note: see reference to function template instantiation 'void std::_Invoke_ret<_Rx,_Callable&,Terminal::SerialDCEInterface&>(std::_Forced<_Rx,true>,_Callable &,Terminal::SerialDCEInterface &)' being compiled
+                 with
+                 [
+                     _Rx=void,
+                     _Callable=_Decayed
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(206): note: while compiling class template member function 'void std::_Func_impl<_Decayed,_Alloc,_Ret,Terminal::SerialDCEInterface &>::_Do_call(Terminal::SerialDCEInterface &)'
+                 with
+                 [
+                     _Alloc=std::allocator<int>,
+                     _Ret=void
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(134): note: see reference to class template instantiation 'std::_Func_impl<_Decayed,_Alloc,_Ret,Terminal::SerialDCEInterface &>' being compiled
+                 with
+                 [
+                     _Alloc=std::allocator<int>,
+                     _Ret=void
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(337): note: see reference to class template instantiation 'std::_Is_large<_Myimpl>' being compiled
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(316): note: see reference to function template instantiation 'void std::_Func_class<_Ret,Terminal::SerialDCEInterface &>::_Reset_alloc<_Ty,std::allocator<int>>(_Fx &&,const _Alloc &)' being compiled
+                 with
+                 [
+                     _Ret=void,
+                     _Ty=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>,
+                     _Fx=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>,
+                     _Alloc=std::allocator<int>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(316): note: see reference to function template instantiation 'void std::_Func_class<_Ret,Terminal::SerialDCEInterface &>::_Reset_alloc<_Ty,std::allocator<int>>(_Fx &&,const _Alloc &)' being compiled
+                 with
+                 [
+                     _Ret=void,
+                     _Ty=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>,
+                     _Fx=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>,
+                     _Alloc=std::allocator<int>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(482): note: see reference to function template instantiation 'void std::_Func_class<_Ret,Terminal::SerialDCEInterface &>::_Reset<std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>>(_Fx &&)' being compiled
+                 with
+                 [
+                     _Ret=void,
+                     _Fx=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>
+                 ]
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\include\functional(482): note: see reference to function template instantiation 'void std::_Func_class<_Ret,Terminal::SerialDCEInterface &>::_Reset<std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>>(_Fx &&)' being compiled
+                 with
+                 [
+                     _Ret=void,
+                     _Fx=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>
+                 ]
+         mainwindow.cpp(55): note: see reference to function template instantiation 'std::function<void (Terminal::SerialDCEInterface &)>::function<std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>>(_Fx)' being compiled
+                 with
+                 [
+                     _Fx=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>
+                 ]
+         mainwindow.cpp(55): note: see reference to function template instantiation 'std::function<void (Terminal::SerialDCEInterface &)>::function<std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>>(_Fx)' being compiled
+                 with
+                 [
+                     _Fx=std::_Binder<std::_Unforced,void (__thiscall MainWindow::* )(Terminal::SerialDCEInterface &),MainWindow *const ,const std::_Ph<1> &>
+                 ]
+         numberarea.cpp
+         octalvalidator.cpp
+     1>octalvalidator.cpp(10): warning C4100: 'pos': unreferenced formal parameter
+         panelswitch.cpp
+         pdp11_cpu.cpp
+     1>e:\github\qtpdp8\pdp11_cpu.h(314): warning C4100: 'addr': unreferenced formal parameter
+     1>e:\github\qtpdp8\pdp11_cpu.h(836): warning C4554: '<<': check operator precedence for possible error; use parentheses to clarify precedence
+         pdp8_rf08.cpp
+         Generating Code...
+         Compiling...
+         pdp8_rk05.cpp
+         pdp8_silly.cpp
+     1>pdp8_silly.cpp(657): warning C4018: '<': signed/unsigned mismatch
+     1>pdp8_silly.cpp(661): warning C4018: '<': signed/unsigned mismatch
+     1>pdp8_silly.cpp(668): warning C4018: '<': signed/unsigned mismatch
+         pdp8_utilities.cpp
+     1>pdp8_utilities.cpp(83): warning C4267: '=': conversion from 'size_t' to 'uint16_t', possible loss of data
+     1>pdp8_utilities.cpp(104): warning C4267: '=': conversion from 'size_t' to 'uint16_t', possible loss of data
+     1>pdp8_utilities.cpp(125): warning C4267: '=': conversion from 'size_t' to 'unsigned short', possible loss of data
+         pdp8dissam.cpp
+     1>pdp8dissam.cpp(708): warning C4267: '=': conversion from 'size_t' to 'uint16_t', possible loss of data
+         pdp8dissmwindow.cpp
+         pdp8events.cpp
+         pdp8i.cpp
+         pdp8interrupts.cpp
+         pdp8state.cpp
+         placabletextedit.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         qtty.cpp
+     1>qtty.cpp(83): warning C4189: 'backup_pos': local variable is initialized but not referenced
+         qtty2.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         switchrow.cpp
+         termina_vt52.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+     1>termina_vt52.cpp(16): warning C4552: '&': operator has no effect; expected operator with side-effect
+         terminal.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+     1>terminal.cpp(122): warning C4267: 'initializing': conversion from 'size_t' to 'short', possible loss of data
+     1>terminal.cpp(127): warning C4267: '=': conversion from 'size_t' to 'short', possible loss of data
+     1>terminal.cpp(155): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+     1>terminal.cpp(165): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+     1>terminal.cpp(208): warning C4018: '<=': signed/unsigned mismatch
+         timer.cpp
+         tty_vt52.cpp
+     1>e:\github\qtpdp8\terminal.h(41): warning C4267: 'argument': conversion from 'size_t' to 'short', possible loss of data
+         wiretest.cpp
+         Generating Code...
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\CL.exe /c /I. /ID:\Qt\5.6a\qtbase\include /ID:\Qt\5.6a\qtbase\include\QtWidgets /ID:\Qt\5.6a\qtbase\include\QtGui /ID:\Qt\5.6a\qtbase\include\QtANGLE /ID:\Qt\5.6a\qtbase\include\QtCore /Idebug /I. /I"D:\Qt\5.6a\qtbase\mkspecs\win32-msvc2015" /I.\GeneratedFiles /Zi /nologo /W3 /WX- /Od /Oy- /D _WINDOWS /D UNICODE /D WIN32 /D QT_WIDGETS_LIB /D QT_GUI_LIB /D QT_CORE_LIB /D QT_OPENGL_ES_2 /D QT_OPENGL_ES_2_ANGLE /Gm- /EHsc /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"Win32\Debug\\" /Fd"Win32\Debug\vc140.pdb" /Gd /TP /analyze- /errorReport:prompt -Zc:strictStrings -w34100 -w34189 -w44996 -w44456 -w44457 -w44458 GeneratedFiles\qrc_pdp8emulator.cpp
+         qrc_pdp8emulator.cpp
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"debug\\PDP8EmulatorTest.exe" /NOLOGO /LIBPATH:D:\Qt\5.6a\qtbase\lib /LIBPATH:D:\Qt\5.6a\qtbase\lib D:\Qt\5.6a\qtbase\lib\qtmaind.lib D:\Qt\5.6a\qtbase\lib\Qt5Widgetsd.lib D:\Qt\5.6a\qtbase\lib\Qt5Guid.lib D:\Qt\5.6a\qtbase\lib\Qt5Cored.lib libEGLd.lib libGLESv2d.lib gdi32.lib user32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /Debug /PDB:"debug\PDP8EmulatorTest.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /MACHINE:X86 /SAFESEH "/MANIFESTDEPENDENCY:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' publicKeyToken='6595b64144ccf1df' language='*' processorArchitecture='*'" Win32\Debug\codeeditor.obj
+         Win32\Debug\console.obj
+         Win32\Debug\moc_codeeditor.obj
+         Win32\Debug\moc_console.obj
+         Win32\Debug\moc_mainwindow.obj
+         Win32\Debug\moc_octalvalidator.obj
+         Win32\Debug\moc_panelswitch.obj
+         Win32\Debug\moc_pdp8dissmwindow.obj
+         Win32\Debug\moc_pdp8_silly.obj
+         Win32\Debug\moc_placabletextedit.obj
+         Win32\Debug\moc_qtty.obj
+         Win32\Debug\moc_qtty2.obj
+         Win32\Debug\moc_switchrow.obj
+         Win32\Debug\qrc_pdp8emulator.obj
+         Win32\Debug\main.obj
+         Win32\Debug\mainwindow.obj
+         Win32\Debug\numberarea.obj
+         Win32\Debug\octalvalidator.obj
+         Win32\Debug\panelswitch.obj
+         Win32\Debug\pdp11_cpu.obj
+         Win32\Debug\pdp8_rf08.obj
+         Win32\Debug\pdp8_rk05.obj
+         Win32\Debug\pdp8_silly.obj
+         Win32\Debug\pdp8_utilities.obj
+         Win32\Debug\pdp8dissam.obj
+         Win32\Debug\pdp8dissmwindow.obj
+         Win32\Debug\pdp8events.obj
+         Win32\Debug\pdp8i.obj
+         Win32\Debug\pdp8interrupts.obj
+         Win32\Debug\pdp8state.obj
+         Win32\Debug\placabletextedit.obj
+         Win32\Debug\qtty.obj
+         Win32\Debug\qtty2.obj
+         Win32\Debug\switchrow.obj
+         Win32\Debug\termina_vt52.obj
+         Win32\Debug\terminal.obj
+         Win32\Debug\timer.obj
+         Win32\Debug\tty_vt52.obj
+         Win32\Debug\wiretest.obj
+     1>mainwindow.obj : error LNK2019: unresolved external symbol "int __cdecl qInitResources_resources(void)" (?qInitResources_resources@@YAHXZ) referenced in function "public: __thiscall MainWindow::MainWindow(class QWidget *)" (??0MainWindow@@QAE@PAVQWidget@@@Z)
+     1>debug\\PDP8EmulatorTest.exe : fatal error LNK1120: 1 unresolved externals
+     1>Done Building Project "E:\GitHub\QtPDP8\PDP8EmulatorTest.vcxproj" (Rebuild target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:52.40

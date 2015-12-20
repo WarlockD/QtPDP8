@@ -4,6 +4,7 @@
 #include "includes.h"
 #include "pdp8interrupts.h"
 #include "pdp8dissam.h"
+#include "pdp8events.h"
 #include <array>
 #include <set>
 
@@ -15,63 +16,105 @@ enum class State {
     Iot,
     Opr
 };
-enum class RunningState {
-     Halt=-1,   // when the cpu makes a halt op
-    Stop=0,
-    SingleStepInstruction,
-    SingleStepState,
-    Run,
-    // These are debugging functions
 
+#define bitmask(l) ((unsigned int)0xffffffff >> (31-(l)))
+#define bbit(n)  ((mb & (1<<n)) ? true : false)
+#define mb_bits(h,l)  ((mb >> l) & bitmask(h-l))
+
+class DataBreak {
+    bool _cycleSelect;
+    bool _breakRequest;
+    bool _dataDirection;
+    bool _caIncrmented;
+    bool _mbIncrmented;
+    bool _transferDirection;
+    uint16_t _address;
+    uint16 _data;
 };
+// not sure this is needed?  Adder tests come up wierd
+inline int16_t signExtend12bit(uint16_t v) { return (v & 04000) ? (int16_t)(0xF000 & v) : (int16_t)v; }
 
 struct Regesters {
+    const static size_t MAX_MEMORY =32768;
+    const static size_t MAX_MEMORY_MASK =MAX_MEMORY-1;
     State state;
+    uint16_t lac;
+
     int32_t pc;
-    int32_t ea;
+    int32_t ema;  // extended address gatting
     int16_t ir;
     int16_t opcode;
-    int16_t lac;
+
     int16_t mq;
-    int16_t lfr;
+
     int16_t ma;
     int16_t mb;
     int16_t svr;
     int16_t gtf;
     int16_t sf;
     uint16_t iot_data; // humm garbage noise?
+    //extended memory
+    int16_t ibr;
+    int16_t ifr;
+    int16_t dfr;
+    int16_t lfr;
+    int16_t uf;
+    int16_t ub;
+    uint16_t ib;
     char emode;
-    char UF;
-    char IF;
-    char UB;
-    char IB;
-    char DF;
-    char ibr;
-    char ifr;
-    char dfr;
+   // std::array<uint16_t,MAX_MEMORY> mem;
+   // uint16_t& operator[](size_t i) { return mem[i & MAX_MEMORY_MASK]; }
+   // uint16_t operator[](size_t i)const  { return mem[i & MAX_MEMORY_MASK]; }
+
 };
 class RegesterHistory {
     static const size_t HIST_COUNT = 64;
     static const size_t HIST_MASK = (HIST_COUNT-1);
+    static inline size_t incAndRollOver(size_t v) { return  (v+1) & HIST_MASK; }
+    static inline size_t decAndRollOver(size_t v) { return  (v-1) & HIST_MASK; }
 
-    std::array<Regesters,HIST_COUNT> _array;//[HIST_COUNT];
+    typedef std::array<Regesters,HIST_COUNT> HistroyArray;
+    HistroyArray _array;//[HIST_COUNT];
     size_t _head;
-    size_t _count;
+    bool _overflow;
     inline uint8_t increment(uint8_t v) const { return (v+1) & HIST_MASK; }
+    void incHead() {
+        _head++;
+        if(_head == HIST_COUNT) { _overflow = true; _head =0;}
+    }
+    size_t pos_begin() const { return _overflow ? incAndRollOver(_head)  : 0; }
+    size_t pos_end() const { return  _head; } // head is always the end
+    size_t rpos_begin() const { return _head != 0 ? decAndRollOver(_head) : 0;  } // _head-1 is always the first  valid element, if we got something
+    size_t rpos_end() const { return _head; } // head is always the end }
 public:
-    RegesterHistory() : _head(0) ,_count(0) {}
+    class RegesterHistoryIterator: std::iterator<std::bidirectional_iterator_tag, Regesters > {
+        const RegesterHistory* _hst;
+        size_t _pos;
+        bool _reverse;
+        size_t next() { return (_pos = (_pos-1) & HIST_MASK);}
+        size_t prev() { return (_pos = (_pos+1) & HIST_MASK);}
+       public:
+         RegesterHistoryIterator(const RegesterHistory* x, size_t startAt, bool reverse) :_hst(x),_pos(startAt),_reverse(reverse) {}
+         RegesterHistoryIterator& operator++() { if(_reverse) next(); else prev(); return *this;}
+         RegesterHistoryIterator operator++(int) { RegesterHistoryIterator tmp(*this); operator++(); return tmp;}
+         RegesterHistoryIterator& operator--() { if(_reverse) prev(); else next();  return *this;}
+         RegesterHistoryIterator operator--(int) { RegesterHistoryIterator tmp(*this); operator--(); return tmp;}
+         bool operator==(const RegesterHistoryIterator& rhs)const {return _hst==rhs._hst && _pos == rhs._pos ;}
+         bool operator!=(const RegesterHistoryIterator& rhs)const {return !(*this==rhs);}
+         const Regesters& operator*() const {return _hst->_array[_pos]; ;}
+         const Regesters* operator->() const {return &_hst->_array[_pos]; ;}
+       };
+    RegesterHistory() : _head(0) ,_overflow(false) {}
     bool push(const Regesters& r) {
         _array[_head] = r;
-        _head = (_head+1) & HIST_MASK;
-        if(_count < HIST_COUNT )_count++;
+        incHead();
         return true;
     }
-    const Regesters& last() const { return _array[(_head-1) & HIST_MASK]; }
-    size_t count() const { return _count; }
-    void clear() { _head = _count = 0; }
-    // Did I mention I LOVE C++11 std::move?
-    std::vector<const Regesters> dump() const;
-    std::vector<const Regesters> dump(size_t count) const;
+    RegesterHistoryIterator begin() const { return RegesterHistoryIterator(this,pos_begin(),false); }
+    RegesterHistoryIterator end()const { return RegesterHistoryIterator(this,pos_end(),false); }
+    RegesterHistoryIterator rbegin() const  { return RegesterHistoryIterator(this,rpos_begin(),true); }
+    RegesterHistoryIterator rend() const  { return RegesterHistoryIterator(this,rpos_end(),true); }
+    void clear() { _head = 0; _overflow = false; }
 };
 
 // this class is a serial interface to an internal of a device
@@ -98,40 +141,17 @@ public: // abstract interface
     virtual void clear() = 0;
     virtual void iot() = 0;
     virtual void updateInterrupts()=0;
-    virtual std::string debug() const = 0;
+    virtual std::string debug() const { return std::string(); }
      virtual ~Device() {}
-};
-
-class Bus;
-class BusEvent {
-private: // EventQueue only has access to these
-    Bus* _bus;
-    uint64_t _delay; // internal delay
-    BusEvent* _next;
-public: // outside interface
-    void addToBus(Bus* bus);
-    void removeFromBus();
-    bool start();
-    bool stop();
-    bool pause();
-protected:
-    uint64_t _interval;
-    bool _restart;
-    bool _isRunning; // only availabe in Bus
-public:
-    BusEvent(uint64_t  interval, bool restart=false) : _interval(interval), _restart(restart),_bus(nullptr) {}
-    virtual ~BusEvent() {}
-    bool restart() const { return _restart;}
-    uint64_t interval() const { return _interval; }
-    virtual bool tick() = 0; // return true to restart event
-    friend class Bus;
 };
 
 
 
 
 typedef std::shared_ptr<Device> DevicePtr;
+// Cpustate, dev, function
 
+//typedef std::function<void(CpuState&,char,char)> DeviceFunction;
 enum class PanelToggleSwitch {
     Start,
     Stop,
@@ -145,13 +165,15 @@ enum class PanelToggleSwitch {
 };
 
 class CpuState {
-
+public:
+       EventSystem sim;
 protected:
-
+       static const size_t MAX_MEMORY = 32768;
+       static const size_t USER_DEV = 01;
  std::atomic<RunningState> _runningState;
-    static const size_t MAX_MEMORY = 32768;
+
     Regesters r;
-    MainMemory m;
+
     uint32_t _sw;
 
     PanelToggleSwitch _panelSwitch; // used to figure out where the switch when we do a cont
@@ -159,6 +181,7 @@ protected:
     bool _no_ion_pending;
     bool _no_cif_pending;
     bool _int_ion;
+    bool _user_interrupt;
                      /* intr enables */
     std::atomic<uint64_t>  _int_req ;                                      /* intr requests */
     uint64_t _int_has_enable; // mask for enables on reset
@@ -172,6 +195,12 @@ protected:
     // set up as a bunch of templates.
     DevicePtr _iots[64];
     friend class Device;
+protected:
+    MainMemory m;
+public: // memory interface
+    inline MainMemory& mem() { return m; }
+    uint16_t& operator[](size_t i) { return m[i]; } // throws exceptions
+    uint16_t operator[](size_t i) const { return i < m.size() ?  m[i] : 0; }
 public:
     CpuState();
 
@@ -192,8 +221,9 @@ public: // diffrent switches
 
 public: // getters and setters
     inline Regesters& regs() { return r; }
+
     inline unsigned short& operator[](int v) { return m[v]; }
-    inline RunningState runningState() const { return _runningState.load(std::memory_order_seq_cst); }
+     inline RunningState runningState() const { return _runningState.load(std::memory_order_seq_cst); }
 
     virtual void setRunningState(RunningState state) {
         _runningState.store(state,std::memory_order_seq_cst);
@@ -207,13 +237,11 @@ public:
     inline void enableInterrupts() { _int_ion = true; }
     inline  void disabbleInterrupts() { _int_ion = false; }
 
-    void installDevInt(char dev,bool defaultIntEnable) {
-        if(defaultIntEnable) _int_has_enable |=((uint64_t)1<<dev); else _int_has_enable &=~((uint64_t)1<<dev);
-       // _iots[dev & 077] = ptr;
+    void installDevInt(int dev, DevicePtr ptr) {
+        _iots[dev & 077] = ptr;
     }
-    void removeDevEnableInt(char dev) {
-        _int_has_enable &=~((uint64_t)1<<dev);
-      //  _iots[dev & 077] = nullptr;
+    void removeDevEnableInt(int dev) {
+        _iots[dev & 077] = nullptr;
     }
     //inline void clearIonDelay() { _no_ion_pending = true; } // CPU uses this
 
@@ -230,6 +258,7 @@ public:
     friend class Cpu; // frend of the CPU class since that calls can screw with anything
     friend class Emx8;
     friend class BasicInterruptSystem;
+    friend class PDP8_Silly;
     std::string printState() const;
 };
 

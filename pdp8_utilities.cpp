@@ -6,7 +6,16 @@
 #include <string>
 #include <unordered_map>
 #include <iomanip>
-// Select one of the following:
+#include <streambuf>
+
+template<typename CharT, typename TraitsT = std::char_traits<CharT> >
+class vectorwrapbuf : public std::basic_streambuf<CharT, TraitsT> {
+public:
+    vectorwrapbuf(std::vector<CharT> &vec) {
+        setg(vec.data(), vec.data(), vec.data() + vec.size());
+    }
+};
+
 #define	VC8I
 //#define	KV8I
 
@@ -76,6 +85,50 @@ void LoadRim(std::istream& i ,CpuState& s, size_t origin){
         hi = i.get();
         } while (hi < 0200);
 }
+void LoadRim(const std::vector<char>& i ,CpuState& s, size_t origin){
+    size_t pos=0;
+    auto get = [&i,&pos]() { return (uint8_t)(pos < i.size() ? i[pos++] : -1); };
+    auto eof = [&i,&pos]() { return pos >= i.size(); };
+    size_t hi=0, lo=0, wd=0;
+    do {                                                    /* skip leader */
+        if(eof()) throw PDP8_Exception("End of Leader before data");
+        hi = get();
+        } while ((hi == 0) || (hi >= 0200));
+    do {
+
+        /* data block */
+        if(eof()) throw PDP8_Exception("Bad Paper tape format");
+        lo = get();
+        wd = (hi << 6) | lo;
+        if (wd > 07777) origin = wd & 07777;
+        else s[origin++ & 07777] = wd;
+        if(eof()) throw PDP8_Exception("Bad Paper tape format");
+        hi = get();
+        } while (hi < 0200);
+}
+void LoadRim(const std::vector<char>& i ,unsigned short* M, size_t origin){
+    size_t pos=0;
+    auto get = [&i,&pos]() { return (uint8_t)(pos < i.size() ? i[pos++] : -1); };
+    auto eof = [&i,&pos]() { return pos >= i.size(); };
+    int hi=0, lo=0, wd=0;
+    // Find leader first
+    // Some times these pwper dumps have text at the start to read
+    do{
+        hi = get();
+    } while(hi < 0200 && hi != -1); // skip text or bad data
+    if(hi == -1) throw PDP8_Exception("No heder found in file, must start with atleast one 0200 char");
+    while(((hi=get())!=-1) &&  ((hi == 0) || (hi >= 0200)));   /* skip leader */
+    if(hi == -1) throw PDP8_Exception("End of leader before data");
+    do { // data block
+        if(eof()) throw PDP8_Exception("Bad Paper tape format");
+        lo = get();
+        wd = (hi << 6) | lo;
+        if (wd > 07777) origin = wd & 07777;
+        else M[origin++ & 07777] = wd;
+        if(eof()) throw PDP8_Exception("Bad Paper tape format");
+        hi = get();
+        } while (hi < 0200);
+}
 
 void LoadRim(const std::string& filename, CpuState& s, size_t origin ){
     /* RIM loader format consists of alternating pairs of addresses and 12-bit
@@ -86,6 +139,16 @@ void LoadRim(const std::string& filename, CpuState& s, size_t origin ){
     fi.open(filename,std::ios_base::binary | std::ios_base::in);
     if(!fi.good()) throw PDP8_Exception("Can't open \"" + filename + "\"");
    LoadRim(fi,s,origin);
+}
+
+void LoadBin(const std::vector<char>& data, CpuState& s, size_t origin ){
+	(void)data, (void)s, (void)origin;
+    /* RIM loader format consists of alternating pairs of addresses and 12-bit
+       words.  It can only operate in field 0 and is not checksummed.
+    */
+    //vectorwrapbuf<char> databuf(data);
+  //  std::istream is(&databuf);
+  // LoadBin(is,s,origin);
 }
 void LoadBin(const std::string& filename, CpuState& s, size_t origin ){
     /* RIM loader format consists of alternating pairs of addresses and 12-bit

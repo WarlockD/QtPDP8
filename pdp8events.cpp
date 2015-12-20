@@ -2,116 +2,47 @@
 #include "pdp8i.h"
 
 namespace PDP8 {
- void Bus::busThread() { // main thread the bus runs on that picks up messages from devices
+//static std::mutex _mutex;
+EventSystem::EventSystem() :_sim_time(0){}
+// this eliminates the need for update_sim_time
+void EventSystem::incremtSimTime(time_slice i) {
+    _sim_time+=i; // do something if we turn this over
+}
 
-     class BusEventContainer {
-         BusEvent* _event;
-         uint64_t _delay;
-     public:
-         BusEventContainer(BusEvent* event) : _event(event) , _delay(event->interval()) {}
-         BusEventContainer(BusEvent* event, uint64_t delay) : _event(event) , _delay(delay) {}
-         BusEvent* event() const { return _event; }
-         uint64_t delay() const { return _delay; }
-         void delay(uint64_t delay) { _delay = delay; }
-         bool operator<(const BusEventContainer& r) const { return _delay < r._delay; }
-         bool operator==(const BusEventContainer& r) const { return _event == r._event; }
-     };
-    std::set<BusEventContainer> events;
-    std::unique_lock<std::mutex> lk(_mutex);
-    _lastReply = BusMessageReply::Idle;
-    _message = BusMessage::Idle;
+void EventSystem::process_event() {
+    _mutex.lock();
+    std::set<SimEvent>::iterator i;
 
-    do {
-        switch(_message) {
-        case BusMessage::AddToBus: // we add the device to the bus
-            _lastReply = BusMessageReply::Error;
-            if(_operand || _operand->_bus==nullptr){
-                _operand->_bus = this;
-                _countdown = _operand->interval();
-                events.emplace(_operand);
-                _lastReply = BusMessageReply::NoError;
-                _countdown = events.begin()->delay();
-            }
-            _message = BusMessage::Idle;
-            _waitRespond.notify_one();
-            break;
-        case BusMessage::RemoveFromBuss:
-            _lastReply = BusMessageReply::Error;
-            if(_operand || _operand->_bus == this){
-                auto it = events.find(BusEventContainer(_operand));
-                if(it != events.end()) {
-                    events.erase(it);
-                    _operand->_bus = nullptr;
-                    _lastReply = BusMessageReply::NoError;
-                }
-            }
-            _message = BusMessage::Idle;
-            _waitRespond.notify_one();
-            break;
-        case BusMessage::RunTopEvent:
+    auto it = _queue.begin();
+    while(it != _queue.end() && _sim_time < it->time()) {
+        const SimEvent& evt = *it;
+        _mutex.unlock(); // we unlock, in case we are changing the sim, like cancling another event
+        time_slice next_time = evt.execute();
+        _mutex.lock();
+        if(next_time!= time_slice::zero()) {
+            SimEvent repeat(evt,next_time+_sim_time);
+            _queue.erase(it++);
+             _queue.insert(repeat);
+        } else _queue.erase(it++);
+    }
+     _mutex.unlock();
+}
+void EventSystem::activate (const SimEvent& e, time_slice event_time) {
+  //SimEvent event(e,event_time+_sim_time);
+  _queue.emplace(e,event_time+_sim_time);
+}
 
-
-
-        case BusMessage::Idle:
-            _postMessage.wait(lk,[this](){ return _message != BusMessage::Idle;});
-            break;
-        default:
-            _message = BusMessage::Idle;
-            break;
-        }
-    }  while(_message != BusMessage::StopThread);
-    _lastReply = BusMessageReply::ThreadStopped;
- }
-Bus::Bus() : _lastReply(BusMessageReply::ThreadStopped), _message(BusMessage::Idle) {
-    std::thread(&Bus::busThread,this).detach();
+void EventSystem::activate(const EventFunction* func, time_slice event_time) {
+     std::lock_guard<std::mutex> lg(_mutex);
+    _queue.emplace(func,event_time+_sim_time);
 }
 
 
-void Bus::postMessage(BusMessage msg,BusEvent* operand){
-     std::lock_guard<std::mutex> lk(_mutex);
-      _lastReply = BusMessageReply::Idle;
-    _message = msg;
-    _operand = operand;
-    _postMessage.notify_one();
+void EventSystem::cancel(const EventFunction* id) {
+    std::lock_guard<std::mutex> lg(_mutex);
+    SimEvent searchfor(id,_sim_time);// should be after this
+    auto cancelit = _queue.find(searchfor);
+    if(cancelit != _queue.end()) _queue.erase(cancelit);
 }
-
-BusMessageReply Bus::postMessageWait(BusMessage msg,BusEvent* operand){
-    std::unique_lock<std::mutex> lk(_mutex);
-   _lastReply = BusMessageReply::Idle;
-   _message = msg;
-   _operand = operand;
-   _postMessage.notify_one();
-   _waitRespond.wait(lk,[this]() { return _lastReply != BusMessageReply::Idle; });
-   BusMessage lastReply = _lastReply;
-   _lastReply = BusMessage::Idle;
-   return lastReply;
-}
-
-
-
-void BusEvent::addToBus(Bus* bus){
-
-
-}
-void BusEvent::removeFromBus(){
-
-}
-
-bool BusEvent::start(){
-
-}
-
-bool BusEvent::stop(){
-
-}
-
-bool BusEvent::pause(){
-
-}
-
-  //  uint64_t _interval;
-  //  bool _restart;
-  //  bool _isRunning; // only availabe in Bus
-
 
 }

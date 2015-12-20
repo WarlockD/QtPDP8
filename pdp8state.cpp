@@ -56,55 +56,58 @@ namespace PDP8 {
     }
     Device::Device(CpuState& c) : c(c) {}
     void CpuState::panelSwitch(PanelToggleSwitch s){// most are toggle so might not use state much
+
         switch(s) {
         case PanelToggleSwitch::Start:
+              _panelSwitch = s;
              r.state = State::Fetch;
             r.ma = r.pc;
             _int_ion = false;
             _no_cif_pending = _no_ion_pending = true;
             r.lac = 0;
-            _panelSwitch = s;
-            _runningState = RunningState::Run;
+            setRunningState(RunningState::Run);
+            break;
         case PanelToggleSwitch::SingleStepInstruction:
         case PanelToggleSwitch::SingleStepState:
-            _panelSwitch = s;
-            break;
+              _panelSwitch = s;
         case PanelToggleSwitch::Stop:
-            _runningState = RunningState::Stop;
+            setRunningState(RunningState::Stop);
             break;
         case PanelToggleSwitch::Cont:
             switch(_panelSwitch) {
             case PanelToggleSwitch::SingleStepInstruction: // single instruction
-                _runningState = RunningState::SingleStepInstruction;
+                setRunningState(RunningState::SingleStepInstruction);
                 break;
             case PanelToggleSwitch::SingleStepState: // single instruction
-                _runningState = RunningState::SingleStepState;
+                setRunningState(RunningState::SingleStepState);
                 break;
             default:
-                _runningState = RunningState::Run; // any other mode we just run
+                setRunningState(RunningState::Run);// any other mode we just run
             }
             break;
         case PanelToggleSwitch::Exam:
+            setRunningState(RunningState::Stop);
              r.state = State::Fetch;
             r.ma = r.pc;
             r.pc = (r.ma +1) & 07777;
             r.mb = m[r.ma];
             break;
         case PanelToggleSwitch::Dep:
+            setRunningState(RunningState::Stop);
              r.state = State::Fetch;
             r.ma = r.pc;
             r.pc = (r.ma +1) & 07777;
              m[r.ma] = r.mb;
             break;
         case PanelToggleSwitch::LoadAdd:
-            _runningState = RunningState::Stop;
+            setRunningState(RunningState::Stop);
             r.ma = _sw & 07777;
             r.dfr = ((_sw>>12) & 07);
             r.ifr = ((_sw>>15) & 07);
             r.pc = r.ma;
             break;
         case PanelToggleSwitch::Clear:
-            _runningState = RunningState::Stop;
+            setRunningState(RunningState::Stop);
             _int_ion = false;
             _no_cif_pending = _no_ion_pending = true;
             r.lac = 0;
@@ -116,21 +119,8 @@ namespace PDP8 {
             if(v & 1) ss << std::oct << i << " ";
         }
     }
-std::vector<const Regesters> RegesterHistory::dump(size_t count) const{
-    // inline uint8_t decment(uint8_t v) const { return (v+1) & HIST_MASK; }
-     std::vector<const Regesters> v;
-     v.reserve(count);
-     size_t current_head = _head;
-     while(count--) {
-         current_head=(current_head-1) & HIST_MASK;
-         const Regesters& r= _array[current_head];
-         v.push_back(r);
-     }
-     return std::move(v);
-}
-std::vector<const Regesters> RegesterHistory::dump() const{
-    return dump(_count);
-}
+
+
 
 
     std::string CpuState::printState() const {

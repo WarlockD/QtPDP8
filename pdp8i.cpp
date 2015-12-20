@@ -1,6 +1,6 @@
 #include "pdp8i.h"
 #include <iomanip>
-
+void test_debug(const QString& msg);
 static const int endian_int = 0x12345678;
 static std::mutex pdp8cpu_mutex; // locking this might take preformance hits
 /*
@@ -24,7 +24,7 @@ constexpr bool is_big_endian()
     return false;
 }
 */
- std::mutex main_thread_mtx;
+
 namespace PDP8 {
     void formatListLine(std::stringstream& ss,const Dissasembler::Line& l,bool endofline=true) {
         ss << octzero(l.addr) << ' ' << octzero(l.data) << ' ';
@@ -43,12 +43,12 @@ namespace PDP8 {
              std::stringstream ss;
              Dissasembler dsam(&m[0]);
              if(count == 1) {
-                 const Regesters& r = hst.last();
+                 const Regesters& r = *hst.rend();
                  const Dissasembler::Line& line = dsam.atAddr(r.pc);
                  formatListLine(ss,line);
              } else {
-                 auto dump = hst.dump(count);
-                 for(const Regesters& r : dump) {
+                // auto dump = hst.dump(count);
+                 for(const Regesters& r : hst) {
                      const Dissasembler::Line& l = dsam.atAddr(r.pc);
                      formatListLine(ss,l);
                  }
@@ -57,50 +57,96 @@ namespace PDP8 {
           }
 
     ThreadedCPU::ThreadedCPU() {
-        startThread();
-    }
+        _slowDownEvent = [this]() {
+       // std::this_thread::sleep_for(time_ms(20)); // fix this
+                return time_ms(20);
+    };
+        sim.activate(&_slowDownEvent,time_ms(20));
+   }
     void ThreadedCPU::setRunningState(RunningState state)  {
+        RunningState c_runningState = runningState();
+        if(c_runningState == state) return; // nothing to do
+        if(c_runningState == RunningState::Run) stopThread();// gotto stop the thread first in all situations
+        switch(state) {
+            case RunningState::Run:
+             Cpu::setRunningState(state);
+
+              hst.clear();
+            startThread();
+            return;
+        case RunningState::Halt:
+        case RunningState::Stop:
+            state = RunningState::Stop; // not sure why Halt would come up, convert it to stop
+            break;
+        case RunningState::SingleStepInstruction:
+        {
+            std::stringstream s;
+            s << "LAC=" << ostr(r.lac,5) << " MQ=" << ostr(r.mq,5) << " PC=" << ostr(r.pc,5) << " : " << dsam8(m[r.ma | r.ema],r.ma,&m[0],true);
+            qDebug() << QString::fromStdString(s.str());
+            state_step(true);
+            state = RunningState::Stop;
+        }
+            break;
+        case RunningState::SingleStepState:
+        {
+            std::stringstream s;
+            s << "LAC=" << ostr(r.lac,5) << " MQ=" << ostr(r.mq,5) << " PC=" << ostr(r.pc,5) << " : " << dsam8(m[r.ma | r.ema],r.ma,&m[0],true);
+            qDebug() << QString::fromStdString(s.str());
+            state_step(false);
+            state = RunningState::Stop;
+        }
+            break;
+        default: // ugh
+            state = RunningState::Stop;
+            break;
+        }
         Cpu::setRunningState(state);
     }
     using namespace std::chrono;
+
     bool ThreadedCPU::threadFunction()  {
+        bool keep_running = true;
         RunningState c_runningState = runningState();
-        switch(c_runningState) {
-            case RunningState::Run:
-        {
-            RunningState _lastState = c_runningState;
-            _current_cycle =  std::chrono::nanoseconds::zero();//  0;
-            auto start = std::chrono::high_resolution_clock::now();
-            for(int i=0;i<1000;i++) {
-                state_step();
-                // this might be to hevey
-                if(_lastState != runningState()) break;
+        RunningState _lastState = c_runningState;
+     //   _current_cycle =  std::chrono::nanoseconds::zero();//  0;
+     //   auto start = std::chrono::high_resolution_clock::now();
+        pdp8cpu_mutex.lock();
+
+        for(int i=0;i<19763;i++) {
+             hst.push(r);
+            state_step();
+            // this might be to hevey
+            if(_lastState != runningState()) {
+                keep_running = false;
+                break;
             }
-            auto end = std::chrono::high_resolution_clock::now();
-           // std::chrono::duration<double> diff = end-start;
-            auto mdiff = duration_cast<nanoseconds>(end-start);
-            if(mdiff < _current_cycle)
-                std::this_thread::sleep_for(mdiff - _current_cycle);
-            if(_haltCallback && runningState() == RunningState::Halt) _haltCallback(*this);
         }
-            break;
-        case RunningState::Halt:
-        case RunningState::Stop:
-          //  waitFor([&_runningState](){ return _runningState != RunningState::Stop && _runningState != RunningState::Halt; });
-            std::this_thread::sleep_for(milliseconds(100));
-            break;
-        case RunningState::SingleStepInstruction:
-            state_step(true);
-            _lastState = RunningState::Stop;
-            break;
-        case RunningState::SingleStepState:
-            state_step(false);
-            _lastState = RunningState::Stop;
-            break;
-        default: // ugh
-            _lastState = RunningState::Stop;
-            break;
+        pdp8cpu_mutex.unlock();
+        return keep_running; // always run
+       }
+
+    void ThreadedCPU::threadStopped() {
+        std::stringstream s;
+        RegesterHistory::RegesterHistoryIterator start= hst.begin();
+        RegesterHistory::RegesterHistoryIterator end= hst.end();
+        int count=0;
+
+        for(auto it = start ;it != end && count < 16;it++,count++) {
+            const Regesters& regs = *it;
+            s << "LAC=" << ostr(regs.lac,5) << " MQ=" << ostr(regs.mq,5) << " PC=" << ostr(regs.pc,5) << " : " << dsam8(m[regs.ma | regs.ema],regs.ma,&m[0],true) << std::endl;
         }
-      return true; // always return true as this never stops
-  }
+        s << "NEXT-------------\n";
+         qDebug() << s.str().c_str();
+         s.clear();
+        count=0;
+        start = hst.rbegin();
+        end = hst.rend();
+        for(auto it = start ;it != end && count < 16;it++,count++) {
+            const Regesters& regs = *it;
+            s << "LAC=" << ostr(regs.lac,5) << " MQ=" << ostr(regs.mq,5) << " PC=" << ostr(regs.pc,5) << " : " << dsam8(m[regs.ma | regs.ema],regs.ma,&m[0],true) << std::endl;
+        }
+       // static QTextStream ts( stdout );
+      //  test_debug(QString::fromStdString(s.str()));
+       qDebug() << s.str().c_str();
+    }
 }

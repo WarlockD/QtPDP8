@@ -9,7 +9,6 @@
 #include <memory>
 #include <atomic>
 #include <queue>
-#include <hash_set>
 #include <functional>
 #include <QDebug>
 #include <mutex>
@@ -19,34 +18,40 @@ class SimpleThread {
     std::atomic<bool> _die;
     std::atomic<bool> _dead;
     std::mutex _mutex;
-    std::condition_variable _cv;
+    std::condition_variable _thread_died;
+
     void _threadRun() {
-        _die = _dead = false;
+        std::unique_lock<std::mutex> lk(_mutex);
+        _die.store(false);
+        _dead.store(false);
         qDebug() << "Starting Simple Thread";
-        while(!_die) threadFunction();
+        while(!_die.load() && threadFunction());
+        if(!_die.load()) threadStopped();
         _dead = true;
         qDebug() << "Ending Simple Thread";
+        _thread_died.notify_all();
     }
 protected:
+    std::mutex& mutex() { return _mutex; }
     virtual bool threadFunction() = 0;
-    void startThread() { if(!_dead) std::thread(&SimpleThread::_threadRun,this).detach(); }
-    void stopThread() { _die = true; while(!_dead); }
-    inline void lockMutex() { _mutex.lock(); }
-    inline void unlockMutex() { _mutex.unlock(); }
-    inline void notifyAll() { _cv.notify_all(); }
-    // this is just a wrapper for the cv
-    void waitFor(std::function<bool()> func) {
-        std::unique_lock<std::mutex> lk(_mutex);
-        _cv.wait(lk,func);
+    virtual void threadStopped() {} // callback when thread function stops thread
+    void startThread() {
+        if(!_dead) std::thread(&SimpleThread::_threadRun,this).detach();
+        else throw std::runtime_error("Thread not dead");
     }
-
+    void stopThread() {
+        std::unique_lock<std::mutex> lk(_mutex);
+        _die.store(true);
+        if(_thread_died.wait_for(lk,std::chrono::milliseconds(500))== std::cv_status::timeout) {
+            throw std::runtime_error("Thread cannot die?");
+            _thread_died.wait(lk);
+        }
+    }
 public:
     SimpleThread() : _die(false), _dead(false) {
         //std::thread(&SimpleThread::_threadRun,this).detach();
     }
     inline bool threadRunning() const { return !_dead; }
-
-
     virtual ~SimpleThread() {
         stopThread();
     }

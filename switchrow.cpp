@@ -54,7 +54,7 @@ SwitchRow::~SwitchRow() {
     //::~QWidget();
 }
 
-void SwitchRow::setSr(int value) {
+void SwitchRow::setSr(int value,bool sendSignal) {
     if (value != m_srvalue) {
             m_srvalue = value;
 
@@ -63,7 +63,7 @@ void SwitchRow::setSr(int value) {
             }
             lineEdit->setText(QString::number(m_srvalue,8));
             update();
-            emit srChanged(m_srvalue); // check, is there a way we can run both these at once
+            if(sendSignal) emit srChanged(m_srvalue); // check, is there a way we can run both these at once
         }
 }
 

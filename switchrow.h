@@ -16,11 +16,11 @@ private:
 public:
     explicit SwitchRow(QWidget *parent = 0);
     ~SwitchRow();
-    void setSr(int value);
+    void setSr(int value,bool sendSignal=true);
     int getSr() const { return m_srvalue; }
 public slots:
     void switchPressed(bool state, int tag);
-Q_SIGNALS:
+signals:
     void srChanged(int newValue);
 };
 
