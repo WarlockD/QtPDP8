@@ -2,30 +2,36 @@
 #include "pdp8i.h"
 
 namespace PDP8 {
-//static std::mutex _mutex;
+
 EventSystem::EventSystem() :_sim_time(0){}
+
+EventSystem::~EventSystem(){
+    _mutex.lock();
+    _queue.clear();
+     _mutex.unlock();
+}
+
 // this eliminates the need for update_sim_time
 void EventSystem::incremtSimTime(time_slice i) {
     _sim_time+=i; // do something if we turn this over
 }
 
 void EventSystem::process_event() {
-    _mutex.lock();
+     std::lock_guard<std::mutex> lg(_mutex);
     std::set<SimEvent>::iterator i;
 
     auto it = _queue.begin();
-    while(it != _queue.end() && _sim_time < it->time()) {
+    while(it != _queue.end() && _sim_time > it->time()) {
         const SimEvent& evt = *it;
-        _mutex.unlock(); // we unlock, in case we are changing the sim, like cancling another event
+      //  _mutex.unlock(); // we unlock, in case we are changing the sim, like cancling another event
         time_slice next_time = evt.execute();
-        _mutex.lock();
+      //  _mutex.lock();
         if(next_time!= time_slice::zero()) {
             SimEvent repeat(evt,next_time+_sim_time);
             _queue.erase(it++);
              _queue.insert(repeat);
         } else _queue.erase(it++);
     }
-     _mutex.unlock();
 }
 void EventSystem::activate (const SimEvent& e, time_slice event_time) {
   //SimEvent event(e,event_time+_sim_time);

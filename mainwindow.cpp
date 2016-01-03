@@ -4,7 +4,7 @@
 #include "pdp8_rf08.h"
 #include <QDebug>
 #include <QQueue>
-
+#include <QCloseEvent>
 
 #include "pdp11_cpu.h"
 
@@ -35,6 +35,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(timer,&QTimer::timeout,this,&MainWindow::on_timer,Qt::QueuedConnection);
 
+
+
        timer->start(1000/15); // update 30 times a sec
 
        connect(ui->simpleConsole,&QTTY2::keyboardSend,this,&MainWindow::onData);
@@ -50,8 +52,10 @@ MainWindow::MainWindow(QWidget *parent) :
     cpu = std::make_shared<PDP8::ThreadedCPU>();
     kl8c = std::make_shared<PDP8::KL8C>(*cpu);
     std::shared_ptr<PDP8::RF08> rfptr = std::make_shared<PDP8::RF08>(*cpu);
-    cpu->installDevInt(04,kl8c);
-    cpu->installDevInt(05,kl8c);
+
+    connect(ui->btnBreakPoint,&QPushButton::clicked,[this](){
+       if(cpu) cpu->setBreakPoint(ui->switchRow->getSr());
+    });
     auto test = std::bind(&MainWindow::onDataTerm,this,std::placeholders::_1);
     kl8c->setCallBack(test);
 
@@ -66,8 +70,22 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    if(cpu) {
+        cpu->panelSwitch(PDP8::PanelToggleSwitch::LoadAdd);
+    }
+
     delete ui;
 }
+void MainWindow::closeEvent(QCloseEvent *event){
+    if(cpu) {
+        cpu->panelSwitch(PDP8::PanelToggleSwitch::Stop);
+         kl8c = nullptr;
+        cpu = nullptr;
+
+    }
+}
+
+
 void MainWindow::onDataTerm(Terminal::SerialDCEInterface&i)
 {
     uint8_t data;
@@ -104,18 +122,7 @@ void MainWindow::on_pushButton_clicked()
  }
 
 void MainWindow::on_timer() {
-    //if(_silly.getRunningState() == PDP8::RunningState::Run) {
-   //     _silly.step(19927);
-   // }
-   // auto rs = _silly.getRegs();
-   // _silly.setSW(ui->switchRow->getSr());
-   // QString s_lac = QString::number(rs.LAC,8);
-   // QString s_pc = QString::number(rs.PC,8);
-   // QString s_mq = QString::number(rs.MQ,8);
 
-  //  ui->labelAC->setText(s_lac);
-  // ui->labelPC->setText(s_pc);
-   // ui->labelMQ->setText(s_mq);
     if(cpu) {
         cpu->trylock([this](PDP8::ThreadedCPU& c){ // just try
               PDP8::Regesters& r = c.regs();
@@ -134,46 +141,6 @@ void MainWindow::on_timer() {
         });
     }
 
-
-/*
-    if(sinterface && sinterface->checkBuffer() ){
-        QChar c = sinterface->getBufferuffer();
-        ui->simpleConsole->putData(c);
-
-        switch(c) {
-        case '\a': ui->simpleConsole->putData(QString("BELL(\"%1\")").arg(c).toLatin1());
-            break;
-        case '\n': case '\r':
-        default:
-            const QChar ch = QChar::fromLatin1(c);
-            if(ch.isPrint()) ui->simpleConsole->putData(QChar::fromLatin1(c));
-            else ui->simpleConsole->putData(QString("Printable(\"%1\")").arg(c).toLatin1());
-             }
-
-
-
-}
-
-*/
-/*
-    std::string s = cpu.printState();
-    s += kl8c->debug();
-    ui->debugConsole->clear();
-    ui->debugConsole->putData(QString::fromStdString(s));
-    if(!last_run_state && !cpu.run()) {
-        ui->debugConsole->putData(QString::fromStdString(cpu.printHistory(16)));
-    }
-    if(last_run_state && !cpu.run()) {
-       // std::string sstring = pdp8Cpu.hst.disam_text(cpu.g.mem);
-       // QString str = QString::fromStdString(sstring);
-       // qDebug() << str;
-        last_run_state = false;
-
-
-    }
-    if(cpu.run() && !last_run_state) last_run_state = true;
-   // ui->labelAC->setText(QString::number(pdp8State.ac,8));
-*/
 }
 
 void MainWindow::on_pushButton_2_clicked()
@@ -255,7 +222,7 @@ void MainWindow::on_pushButton_8_clicked()
     if(cpu) {
         cpu->power();
       //  PDP8::LoadRim(getFile("MAINDEC-8E-D0AB-InstTest-1.pt"),cpu->mem().data());
-        PDP8::LoadRim(getResource(":/diags/MAINDEC-8I-D01C-PB.pt"), cpu->mem().data());
+        PDP8::LoadRim(getResource(":/diags/MAINDEC-8I-D01C-PB.pt"), cpu->data());
         setSr(07777);
         cpu->regs().ma = 0200;
         cpu->regs().pc = 0200;
@@ -266,7 +233,8 @@ void MainWindow::on_pushButton_9_clicked()
 {
     if(cpu) {
         cpu->power();
-        PDP8::LoadRim(getFile("MAINDEC-8E-D0BB-InstTest-2.pt"),cpu->mem().data());
+      //  PDP8::LoadRim(getFile("MAINDEC-8E-D0AB-InstTest-1.pt"),cpu->mem().data());
+        PDP8::LoadRim(getResource(":/diags/MAINDEC-8I-D02B-PB.pt"), cpu->data());
         setSr(07777);
         cpu->regs().ma = 0200;
         cpu->regs().pc = 0200;

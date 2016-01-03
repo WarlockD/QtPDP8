@@ -44,8 +44,8 @@
      <rect>
       <x>20</x>
       <y>90</y>
-      <width>77</width>
-      <height>228</height>
+      <width>82</width>
+      <height>251</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_6">
@@ -53,6 +53,13 @@
       <widget class="QPushButton" name="pushButton_2">
        <property name="text">
         <string>Load Add</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnBreakPoint">
+       <property name="text">
+        <string>BreakPiont</string>
        </property>
       </widget>
      </item>
@@ -112,8 +119,8 @@
      <rect>
       <x>150</x>
       <y>80</y>
-      <width>100</width>
-      <height>311</height>
+      <width>109</width>
+      <height>353</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout_8">

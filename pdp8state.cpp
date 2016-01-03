@@ -22,10 +22,12 @@ namespace PDP8 {
     }
 
 */
-    CpuState::CpuState() : _sw(0), _runningState(RunningState::Stop){
+    CpuState::CpuState() : m(r), _sw(0), _runningState(RunningState::Stop){
+        memset(_iots.data(),0,sizeof(Device*)*64);
+
          power();
          _int_has_enable=0;
-         m.resize(MAX_MEMORY);
+         //m.resize(MAX_MEMORY);
          /*
                  _sw = 0;
                  uint32_t _sw;
@@ -48,9 +50,7 @@ namespace PDP8 {
     void CpuState::power() {
         std::memset(&r,0,sizeof(Regesters));
         _int_ion = false;
-
-                _no_cif_pending = _no_ion_pending = true;
-
+        _no_cif_pending = _no_ion_pending = true;
         _int_req = 0;
          r.state = State::Fetch;
     }
@@ -63,7 +63,7 @@ namespace PDP8 {
              r.state = State::Fetch;
             r.ma = r.pc;
             _int_ion = false;
-            _no_cif_pending = _no_ion_pending = true;
+            _no_ion_pending = true;
             r.lac = 0;
             setRunningState(RunningState::Run);
             break;
@@ -102,14 +102,14 @@ namespace PDP8 {
         case PanelToggleSwitch::LoadAdd:
             setRunningState(RunningState::Stop);
             r.ma = _sw & 07777;
-            r.dfr = ((_sw>>12) & 07);
-            r.ifr = ((_sw>>15) & 07);
+            //r.dfr = ((_sw>>12) & 07);
+          //  r.ifr = ((_sw>>15) & 07);
             r.pc = r.ma;
             break;
         case PanelToggleSwitch::Clear:
             setRunningState(RunningState::Stop);
             _int_ion = false;
-            _no_cif_pending = _no_ion_pending = true;
+            _no_ion_pending = true;
             r.lac = 0;
         break;
         }
@@ -126,7 +126,7 @@ namespace PDP8 {
     std::string CpuState::printState() const {
         std::stringstream ss;
         ss << "Int Ion        : " << (_int_ion ? "true" : "false") << std::endl;
-        ss << "No Crf Pending : " << (_no_cif_pending ? "true" : "false") << std::endl;
+        //ss << "No Crf Pending : " << (_no_cif_pending ? "true" : "false") << std::endl;
         ss << "No ion Pending : " << (_no_ion_pending ? "true" : "false") << std::endl;
 
         ss << "Req            : "; formating_bits(_int_req,ss); ss << std::endl;

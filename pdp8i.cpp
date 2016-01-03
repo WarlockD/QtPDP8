@@ -57,6 +57,7 @@ namespace PDP8 {
           }
 
     ThreadedCPU::ThreadedCPU() {
+        _breakpoint = -1;
         _slowDownEvent = [this]() {
        // std::this_thread::sleep_for(time_ms(20)); // fix this
                 return time_ms(20);
@@ -66,10 +67,10 @@ namespace PDP8 {
     void ThreadedCPU::setRunningState(RunningState state)  {
         RunningState c_runningState = runningState();
         if(c_runningState == state) return; // nothing to do
-        if(c_runningState == RunningState::Run) stopThread();// gotto stop the thread first in all situations
+        if(c_runningState == RunningState::Run) { state = RunningState::Stop; stopThread();}// gotto stop the thread first in all situations
         switch(state) {
             case RunningState::Run:
-             Cpu::setRunningState(state);
+             CpuState::setRunningState(state);
 
               hst.clear();
             startThread();
@@ -80,8 +81,9 @@ namespace PDP8 {
             break;
         case RunningState::SingleStepInstruction:
         {
+            CpuState::setRunningState(RunningState::SingleStepInstruction);
             std::stringstream s;
-            s << "LAC=" << ostr(r.lac,5) << " MQ=" << ostr(r.mq,5) << " PC=" << ostr(r.pc,5) << " : " << dsam8(m[r.ma | r.ema],r.ma,&m[0],true);
+            s << "LAC=" << ostr(r.lac,5) << " MA=" << ostr(r.ma,5) << " MB=" << ostr(r.mb,4) << " PC=" << ostr(r.pc,5) << " : " << dsam8(m[r.pc],r.pc,&m[0],true);
             qDebug() << QString::fromStdString(s.str());
             state_step(true);
             state = RunningState::Stop;
@@ -89,18 +91,19 @@ namespace PDP8 {
             break;
         case RunningState::SingleStepState:
         {
+             CpuState::setRunningState(RunningState::SingleStepState);
             std::stringstream s;
-            s << "LAC=" << ostr(r.lac,5) << " MQ=" << ostr(r.mq,5) << " PC=" << ostr(r.pc,5) << " : " << dsam8(m[r.ma | r.ema],r.ma,&m[0],true);
+             s << "LAC=" << ostr(r.lac,5) << " MA=" << ostr(r.ma,5) << " MB=" << ostr(r.mb,4) << " PC=" << ostr(r.pc,5) << " : " << dsam8(m[r.pc],r.pc,&m[0],true);
             qDebug() << QString::fromStdString(s.str());
             state_step(false);
             state = RunningState::Stop;
         }
             break;
         default: // ugh
-            state = RunningState::Stop;
+            CpuState::setRunningState(RunningState::Stop);
             break;
         }
-        Cpu::setRunningState(state);
+        CpuState::setRunningState(state);
     }
     using namespace std::chrono;
 
@@ -113,10 +116,15 @@ namespace PDP8 {
         pdp8cpu_mutex.lock();
 
         for(int i=0;i<19763;i++) {
+
              hst.push(r);
             state_step();
             // this might be to hevey
             if(_lastState != runningState()) {
+                keep_running = false;
+                break;
+            }
+            if(_breakpoint > -1 && _breakpoint == r.pc) {
                 keep_running = false;
                 break;
             }

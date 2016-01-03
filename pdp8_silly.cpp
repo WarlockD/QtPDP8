@@ -654,18 +654,15 @@ void PDP8_Hack::step() {
         r.lac+=m[r.ma];
         break;
     case 02000:
-        if (r.ma<m.size())
             if ( ( m[r.ma]=( 1+m[r.ma] )&07777 )==0 ) setSkip();
         break;
     case 03000:
-        if (r.ma<m.size())
             m[r.ma]=r.lac&07777;
         r.lac&=010000;
         break;
     case 04000:
         r.ifr=r.ib<<9;
         r.ma=(r.ma&07777)+r.ifr;
-        if (r.ma<m.size())
             m[r.ma]=r.pc;
         r.pc=( r.ma+1 )&07777;
         _no_cif_pending=true;

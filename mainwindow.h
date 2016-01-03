@@ -3,7 +3,7 @@
 
 #include "pdp8i.h"
 #include "tty_vt52.h"
-#include "pdp8_silly.h"
+
 #include <QMainWindow>
 #include <QTimer>
 #include <QQueue>
@@ -61,6 +61,8 @@ private slots:
 
        void on_pushButton_14_clicked();
     void srChanged(int value);
+protected:
+    void closeEvent(QCloseEvent *event) override;
 private:
 	std::vector<char>  getResource(const char* filename);
     void setSr(int value); // helper function to make sure SR is set and the signals propergate right

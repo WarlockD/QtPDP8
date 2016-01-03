@@ -39,6 +39,8 @@ public:
     KL8C(CpuState& c) :   Device(c) {
         _ttiDev = 03;
         _ttoDev = 04;
+        c.installDevInt(_ttiDev,this);
+        c.installDevInt(_ttoDev,this);
         setBaud(KL8CBand::Band110);
         _ttiEvent = [this]() {
                      if(internalRecive(_ttiData)) {
@@ -58,6 +60,11 @@ public:
 
         enableTTI();
     }
+    ~KL8C() {
+        c.removeDevEnableInt(_ttiDev);
+        c.removeDevEnableInt(_ttoDev);
+    }
+
     void enableTTI() {
         c.sim.activate(&_ttiEvent,_band);
     }

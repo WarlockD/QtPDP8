@@ -112,9 +112,7 @@ public:
     }
     bool haveData() const { return !_data.empty(); }
 };
-std::string to_octal(int num,const char* fmt="%04o") ;
-inline bool isIndirect(uint16_t a) { return a & 0x100; }
-inline bool isCurrent(uint16_t a) { return a & 0200; } //0200
+
 class octzero {
 
     int _num;

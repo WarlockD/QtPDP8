@@ -32,6 +32,7 @@ typedef std::function<time_slice()> EventFunction;
     public:
         SimEvent(const EventFunction* e,time_slice time) : _time(time), _event(e) {}
         SimEvent(const SimEvent& e,time_slice time) : _time(time), _event(e._event) {}
+
         time_slice execute() const {  return (*_event)(); }
         time_slice time() const { return _time; }
         bool operator<(const SimEvent& r) const { return _time > r._time; } // we want this sorted the other way
@@ -45,6 +46,7 @@ typedef std::function<time_slice()> EventFunction;
         void activate(const SimEvent& e, time_slice event_time);
     public:
         EventSystem();
+         ~EventSystem();
         void incremtSimTime(time_slice i);
         time_slice simTime() const { return _sim_time; }
         void process_event();

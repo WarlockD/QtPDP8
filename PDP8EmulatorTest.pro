@@ -26,7 +26,6 @@ SOURCES += main.cpp\
     pdp8dissam.cpp \
     pdp8state.cpp \
     timer.cpp \
-    pdp8interrupts.cpp \
     tty_vt52.cpp \
     qtty.cpp \
     placabletextedit.cpp \
@@ -37,8 +36,7 @@ SOURCES += main.cpp\
     wiretest.cpp \
     pdp8_rk05.cpp \
     pdp8_rf08.cpp \
-    pdp11_cpu.cpp \
-    pdp8_silly.cpp
+    pdp11_cpu.cpp
 
 HEADERS  += mainwindow.h \
     panelswitch.h \
@@ -53,7 +51,6 @@ HEADERS  += mainwindow.h \
     pdp8dissam.h \
     pdp8state.h \
     timer.h \
-    pdp8interrupts.h \
     includes.h \
     tty_vt52.h \
     qtty.h \
@@ -65,8 +62,7 @@ HEADERS  += mainwindow.h \
     wiretest.h \
     pdp8_rk05.h \
     pdp8_rf08.h \
-    pdp11_cpu.h \
-    pdp8_silly.h
+    pdp11_cpu.h
 
 FORMS    += mainwindow.ui
 

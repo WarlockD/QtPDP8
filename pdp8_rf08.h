@@ -63,7 +63,7 @@ static const uint16 INT_RF	=	1  ;
         EventFunction _rf08Event;
         EventID _rf08EventID;
     public:
-        RF08(Cpu& c) : Device(c) ,phcell(0) {
+        RF08(CpuState& c) : Device(c) ,phcell(0) {
             _rf08Event = [this]() {
                 if(phcell==0) phcell = 1; else phcell = 0;
                 return (time_slice)std::chrono::milliseconds(30);

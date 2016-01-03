@@ -21,7 +21,7 @@ class SimpleThread {
     std::condition_variable _thread_died;
 
     void _threadRun() {
-        std::unique_lock<std::mutex> lk(_mutex);
+     //   std::unique_lock<std::mutex> lk(_mutex);
         _die.store(false);
         _dead.store(false);
         qDebug() << "Starting Simple Thread";
@@ -36,19 +36,21 @@ protected:
     virtual bool threadFunction() = 0;
     virtual void threadStopped() {} // callback when thread function stops thread
     void startThread() {
-        if(!_dead) std::thread(&SimpleThread::_threadRun,this).detach();
+        if(_dead) std::thread(&SimpleThread::_threadRun,this).detach();
         else throw std::runtime_error("Thread not dead");
     }
     void stopThread() {
         std::unique_lock<std::mutex> lk(_mutex);
         _die.store(true);
-        if(_thread_died.wait_for(lk,std::chrono::milliseconds(500))== std::cv_status::timeout) {
-            throw std::runtime_error("Thread cannot die?");
-            _thread_died.wait(lk);
-        }
+        while(!_dead.load());
+     //   _thread_died.wait(lk);
+     //   if(_thread_died.wait_for(lk,std::chrono::milliseconds(500))== std::cv_status::timeout) {
+       //     throw std::runtime_error("Thread cannot die?");
+     //       _thread_died.wait(lk);
+     //   }
     }
 public:
-    SimpleThread() : _die(false), _dead(false) {
+    SimpleThread() : _die(true), _dead(true) {
         //std::thread(&SimpleThread::_threadRun,this).detach();
     }
     inline bool threadRunning() const { return !_dead; }
